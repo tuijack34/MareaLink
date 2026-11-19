@@ -1,5 +1,6 @@
 package uy.gero.marea.ui
 
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -198,14 +199,24 @@ fun TrackMenu(t: Track, expanded: Boolean, onDismiss: () -> Unit, a: TrackAction
 }
 
 @Composable
-fun MediaCard(title: String, subtitle: String?, url: String?, onClick: () -> Unit, modifier: Modifier = Modifier, circle: Boolean = false, badge: String? = null) {
-    Column(modifier.pressScale().clip(RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(6.dp)) {
+fun MediaCard(title: String, subtitle: String?, url: String?, onClick: () -> Unit, modifier: Modifier = Modifier, circle: Boolean = false, badge: String? = null, onLongClick: (() -> Unit)? = null, pinned: Boolean = false) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    Column(
+        modifier.pressScale().clip(RoundedCornerShape(18.dp))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick?.let { lc -> { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); lc() } })
+            .padding(6.dp),
+    ) {
         Box {
             Cover(
                 url, Modifier.fillMaxWidth().aspectRatio(1f),
                 if (circle) CircleShape else RoundedCornerShape(16.dp),
                 if (circle) Icons.Default.Person else Icons.Default.Album,
             )
+            if (pinned) {
+                Box(Modifier.align(Alignment.TopStart).padding(6.dp).size(26.dp).background(Color.Black.copy(alpha = 0.6f), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.PushPin, "Anclada", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                }
+            }
             if (badge != null) {
                 Box(Modifier.align(Alignment.TopEnd).padding(6.dp).background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))) {
                     Text(badge, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp))
@@ -223,8 +234,8 @@ fun AlbumCard(a: Album, onClick: () -> Unit, modifier: Modifier = Modifier) =
     MediaCard(a.title, listOfNotNull(a.artistLine.takeIf { it.isNotBlank() }, a.year).joinToString(" · "), a.cover, onClick, modifier, badge = if (a.isHiRes) "HI-RES" else null)
 
 @Composable
-fun PlaylistCard(p: Playlist, onClick: () -> Unit, modifier: Modifier = Modifier) =
-    MediaCard(p.name, p.numberOfItems?.let { "$it temas" }, p.cover, onClick, modifier)
+fun PlaylistCard(p: Playlist, onClick: () -> Unit, modifier: Modifier = Modifier, onLongClick: (() -> Unit)? = null, pinned: Boolean = false) =
+    MediaCard(p.name, p.numberOfItems?.let { "$it temas" }, p.cover, onClick, modifier, onLongClick = onLongClick, pinned = pinned)
 
 @Composable
 fun ArtistCard(a: Artist, onClick: () -> Unit, modifier: Modifier = Modifier) =

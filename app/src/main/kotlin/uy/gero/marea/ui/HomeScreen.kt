@@ -52,7 +52,7 @@ fun HomeScreen(vm: MainViewModel, actions: TrackActions, currentId: String?, cov
     LaunchedEffect(Unit) { vm.loadHome() }
     val recentTracks = vm.tracks.items.take(12)
     val recentAlbums = vm.albums.items.take(12)
-    val playlists = vm.playlists.items.take(12)
+    val playlists = vm.withPinnedFirst(vm.playlists.items).take(12)
 
     androidx.compose.material3.pulltorefresh.PullToRefreshBox(
         isRefreshing = vm.mixesLoading && vm.mixes.isNotEmpty(),

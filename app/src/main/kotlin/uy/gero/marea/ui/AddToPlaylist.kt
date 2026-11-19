@@ -1,5 +1,6 @@
 package uy.gero.marea.ui
 
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,7 +55,7 @@ fun AddToPlaylistSheet(vm: MainViewModel, t: Track) {
             if (vm.ownedLoading) { SkeletonRow(); SkeletonRow() }
             else if (vm.ownedPlaylists.isEmpty()) ErrorBox("No tenés playlists propias todavía")
             LazyColumn {
-                items(vm.ownedPlaylists, key = { it.id }) { p ->
+                items(vm.withPinnedFirst(vm.ownedPlaylists).filter { o -> vm.ownedPlaylists.any { it.id == o.id } }, key = { it.id }) { p ->
                     Row(
                         Modifier.fillMaxWidth().clickable { vm.addTrackToPlaylist(t, p) }.padding(horizontal = 24.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -62,7 +63,10 @@ fun AddToPlaylistSheet(vm: MainViewModel, t: Track) {
                         Cover(p.cover, Modifier.size(52.dp), RoundedCornerShape(12.dp))
                         Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (vm.isPinned(p.id)) { Icon(Icons.Default.PushPin, "Anclada", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)) }
+                                Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
                             p.numberOfItems?.let { Text("$it temas", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         }
                     }

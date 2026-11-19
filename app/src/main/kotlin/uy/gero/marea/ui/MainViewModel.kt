@@ -312,6 +312,48 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    // ---- Playlists ancladas (se guardan en el teléfono, con lo necesario para mostrarlas al instante) ----
+    private val pinPrefs = app.getSharedPreferences("marea", android.content.Context.MODE_PRIVATE)
+    val pinnedPlaylists = mutableStateListOf<Playlist>().apply { addAll(loadPinned()) }
+
+    private fun loadPinned(): List<Playlist> = runCatching {
+        val arr = org.json.JSONArray(pinPrefs.getString("pinnedPlaylists", "[]"))
+        (0 until arr.length()).map { i ->
+            val o = arr.getJSONObject(i)
+            fun str(k: String) = if (o.isNull(k)) null else o.optString(k).takeIf { it.isNotEmpty() }
+            Playlist(o.getString("id"), o.getString("name"), null, if (o.has("n")) o.getInt("n") else null, str("cover"), str("coverLarge"), str("type"))
+        }
+    }.getOrDefault(emptyList())
+
+    private fun savePinned() {
+        val arr = org.json.JSONArray()
+        pinnedPlaylists.forEach { p ->
+            arr.put(org.json.JSONObject().apply {
+                put("id", p.id); put("name", p.name)
+                p.numberOfItems?.let { put("n", it) }
+                put("cover", p.cover); put("coverLarge", p.coverLarge); put("type", p.type)
+            })
+        }
+        pinPrefs.edit().putString("pinnedPlaylists", arr.toString()).apply()
+    }
+
+    fun isPinned(id: String) = pinnedPlaylists.any { it.id == id }
+
+    fun togglePin(p: Playlist) {
+        val i = pinnedPlaylists.indexOfFirst { it.id == p.id }
+        if (i >= 0) { pinnedPlaylists.removeAt(i); message = "Desanclada: ${p.name}" }
+        else { pinnedPlaylists.add(0, p); message = "Anclada: ${p.name}" }
+        savePinned()
+    }
+
+    /** Ancladas primero (en el orden en que las anclaste), después el resto sin repetir. */
+    fun withPinnedFirst(list: List<Playlist>): List<Playlist> {
+        val byId = list.associateBy { it.id }
+        val pins = pinnedPlaylists.map { byId[it.id] ?: it }
+        val ids = pins.map { it.id }.toSet()
+        return pins + list.filter { it.id !in ids }
+    }
+
     var addToPlaylistFor by mutableStateOf<Track?>(null)
     val ownedPlaylists = mutableStateListOf<Playlist>()
     var ownedLoading by mutableStateOf(false)

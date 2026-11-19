@@ -1,5 +1,7 @@
 package uy.gero.marea.ui
 
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -87,6 +89,7 @@ private fun CollectionHeader(
     onFavorite: (() -> Unit)?,
     onSubtitle: (() -> Unit)?,
     headerArt: (@Composable () -> Unit)? = null,
+    extraAction: (@Composable () -> Unit)? = null,
 ) {
     val tint = rememberCoverColor(cover, coverColors, MaterialTheme.colorScheme.primary)
     Box(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(tint.copy(alpha = 0.45f), Color.Transparent)))) {
@@ -109,6 +112,7 @@ private fun CollectionHeader(
                             Icon(if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Favorito", tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                         }
                     }
+                    extraAction?.invoke()
                 }
             }
             if (wide) {
@@ -194,6 +198,17 @@ fun PlaylistScreen(vm: MainViewModel, screen: Screen.PlaylistS, actions: TrackAc
         cover = playlist?.coverLarge ?: playlist?.cover,
         loaded = loaded,
         onPlay = { shuffle -> vm.playLoaded(loaded, shuffle, playlist?.name ?: "Playlist") },
+        extraAction = playlist?.let { pl ->
+            {
+                val pinned = vm.isPinned(pl.id)
+                IconButton(onClick = { vm.togglePin(pl) }) {
+                    Icon(
+                        if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin, if (pinned) "Desanclar" else "Anclar",
+                        tint = if (pinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+        },
     )
 }
 
@@ -203,6 +218,7 @@ fun TrackCollection(
     vm: MainViewModel, actions: TrackActions, currentId: String?, coverColors: Boolean, contentPadding: PaddingValues,
     title: String, subtitle: String, meta: String?, cover: String?, loaded: LoadedList, onPlay: (shuffle: Boolean) -> Unit,
     headerArt: (@Composable () -> Unit)? = null,
+    extraAction: (@Composable () -> Unit)? = null,
 ) {
     val tracks = loaded.tracks
     val listState = rememberLazyListState()
@@ -216,7 +232,7 @@ fun TrackCollection(
                     cover = cover, coverColors = coverColors,
                     onPlay = { onPlay(false) }, onShuffle = { onPlay(true) },
                     onRadio = tracks.firstOrNull()?.let { first -> { vm.player.startRadio(first) } },
-                    favorite = null, onFavorite = null, onSubtitle = null, headerArt = headerArt,
+                    favorite = null, onFavorite = null, onSubtitle = null, headerArt = headerArt, extraAction = extraAction,
                 )
             }
             if (tracks.isEmpty() && loaded.loading) items(6) { SkeletonRow() }

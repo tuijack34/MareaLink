@@ -146,8 +146,14 @@ fun LibraryScreen(vm: MainViewModel, actions: TrackActions, currentId: String?, 
                     }
                 }
                 @Suppress("UNCHECKED_CAST")
-                val list = (paged.items as List<Playlist>).filter { q.isEmpty() || it.name.lowercase().contains(q) }
-                items(list, key = { "p" + it.id }) { p -> PlaylistCard(p, { vm.open(Screen.PlaylistS(p.id, p)) }) }
+                val list = vm.withPinnedFirst(paged.items as List<Playlist>).filter { q.isEmpty() || it.name.lowercase().contains(q) }
+                // Mantener apretado una playlist para anclarla arriba de todo
+                items(list, key = { "p" + it.id }) { p ->
+                    PlaylistCard(
+                        p, { vm.open(Screen.PlaylistS(p.id, p)) }, Modifier.animateItem(),
+                        onLongClick = { vm.togglePin(p) }, pinned = vm.isPinned(p.id),
+                    )
+                }
             }
             LibrarySection.ALBUMS -> {
                 @Suppress("UNCHECKED_CAST")
