@@ -14,6 +14,10 @@
   <img src="docs/completo.jpg" width="24%">
   <img src="docs/biblioteca.jpg" width="24%">
 </p>
+<p align="center">
+  <img src="docs/cerrado.jpg" width="30%"><br>
+  <sub>Con el teléfono cerrado</sub>
+</p>
 
 ## Qué es
 
