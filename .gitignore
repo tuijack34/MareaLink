@@ -1,0 +1,23 @@
+# Gradle / Android Studio
+.gradle/
+build/
+/app/build/
+/app/release/
+.idea/
+*.iml
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Configuración local y secretos — NUNCA subir
+local.properties
+*.jks
+*.keystore
+keystore.properties
+
+# APKs
+*.apk
+*.aab
+
+.DS_Store
