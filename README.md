@@ -5,12 +5,15 @@
 
 > ⚠️ Proyecto personal **no oficial**. No tiene relación con TIDAL ni con Samsung. Necesitás una suscripción de TIDAL y la app oficial instalada.
 
-<!-- Capturas: poné las imágenes en docs/ y descomentá
 <p align="center">
-  <img src="docs/abierto.jpg" width="70%">
-  <img src="docs/cerrado.jpg" width="25%">
+  <img src="docs/abierto.jpg" width="100%">
 </p>
--->
+<p align="center">
+  <img src="docs/colores.jpg" width="24%">
+  <img src="docs/letra.jpg" width="24%">
+  <img src="docs/completo.jpg" width="24%">
+  <img src="docs/biblioteca.jpg" width="24%">
+</p>
 
 ## Qué es
 
