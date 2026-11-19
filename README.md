@@ -9,13 +9,13 @@
   <img src="docs/abierto.jpg" width="100%">
 </p>
 <p align="center">
-  <img src="docs/colores.jpg" width="24%">
-  <img src="docs/letra.jpg" width="24%">
-  <img src="docs/completo.jpg" width="24%">
-  <img src="docs/biblioteca.jpg" width="24%">
+  <img src="docs/colores.jpg" width="32%">
+  <img src="docs/completo.jpg" width="32%">
+  <img src="docs/biblioteca.jpg" width="32%">
 </p>
 <p align="center">
-  <img src="docs/cerrado.jpg" width="30%"><br>
+  <img src="docs/cerrado.jpg" width="30%">
+  <img src="docs/cerrado-reproductor.jpg" width="30%"><br>
   <sub>Con el teléfono cerrado</sub>
 </p>
 
@@ -35,7 +35,7 @@ Marea Link es una interfaz alternativa para TIDAL. **No reproduce audio por su c
 - **Gestos**: deslizar la tapa para cambiar de tema, doble toque para "me gusta".
 - **Widget** estilo One UI con fondo de vidrio, transparencia y colores configurables.
 - **Botones de los auriculares/reloj** controlan la cola de Marea (ver más abajo).
-- Me gusta, agregar a playlists, crear playlists, sugerencias y radio de artista.
+- Me gusta, agregar a playlists (también desde el reproductor), crear playlists, **anclar playlists** arriba de todo, sugerencias y radio de artista.
 
 ## Limitaciones (leelas antes)
 
