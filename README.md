@@ -48,40 +48,43 @@ Marea Link es una interfaz alternativa para TIDAL. **No reproduce audio por su c
 
 ## Instalación
 
-### 1. Registrá tu propia app en TIDAL (5 minutos)
+### 1. Bajá el APK
 
-Cada persona usa su propio Client ID.
+Bajá el último `MareaLink-vX.Y.Z.apk` de [Releases](https://github.com/tuijack34/MareaLink/releases/latest). No hace falta compilar nada.
+
+### 2. Conseguí tu Client ID de TIDAL (5 minutos, una sola vez)
+
+La primera vez que abrís la app te lo pide y te explica los pasos. Cada persona usa el suyo:
 
 1. Entrá a [developer.tidal.com](https://developer.tidal.com), iniciá sesión con tu cuenta y creá una app.
 2. En **Redirect URIs** agregá exactamente: `tidalfold://link`
 3. Activá estos **scopes**:
    `user.read` `collection.read` `collection.write` `playlists.read` `playlists.write` `playback` `search.read` `recommendations.read` `entitlements.read`
-4. Copiá el **Client ID**. El Client Secret no hace falta: no lo pongas en ningún lado.
-
-### 2. Compilá
-
-Necesitás JDK 21 y el SDK de Android (lo más fácil: [Android Studio](https://developer.android.com/studio)).
-
-```bash
-git clone https://github.com/tuijack34/MareaLink.git
-cd MareaLink
-cp local.properties.example local.properties
-# Editá local.properties y poné tu tidal.clientId=...
-./gradlew assembleRelease
-```
-
-El APK queda en `app/build/outputs/apk/release/app-release.apk`. Si no configurás una firma propia, se firma con tu clave de debug (sirve para uso personal).
+4. Copiá el **Client ID** y pegalo en la app. El Client Secret no hace falta: no lo pongas en ningún lado.
 
 ### 3. Instalá y dale permisos
 
 1. Instalá el APK. **Play Protect** puede bloquearlo porque la app pide acceso a notificaciones (lo necesita para poder controlar TIDAL). Buscá la opción para instalar igual en el aviso o pausá Play Protect un momento desde Play Store.
-2. Abrí Marea Link e iniciá sesión con TIDAL.
+2. Abrí Marea Link, pegá tu Client ID e iniciá sesión con TIDAL.
 3. La app te va a pedir **acceso a notificaciones**. Android lo marca como "ajuste restringido" en apps instaladas a mano:
    - Andá a Ajustes → Aplicaciones → Marea Link → ⋮ (arriba a la derecha) → **Permitir ajustes restringidos**.
    - Después volvé y activá Marea Link en "Acceso a notificaciones".
 4. Abrí TIDAL una vez y apagá el Autoplay.
 
 ¿Por qué acceso a notificaciones? Es el permiso que Android exige para ver y controlar los reproductores de otras apps (`MediaSessionManager`). Marea **no lee tus notificaciones**: solo busca la sesión de música de TIDAL.
+
+## Compilarlo vos
+
+Necesitás JDK 21 y el SDK de Android (lo más fácil: [Android Studio](https://developer.android.com/studio)).
+
+```bash
+git clone https://github.com/tuijack34/MareaLink.git
+cd MareaLink
+cp local.properties.example local.properties   # opcional: tu tidal.clientId y tu firma
+./gradlew assembleRelease
+```
+
+El APK queda en `app/build/outputs/apk/release/`. Si no ponés Client ID, la app lo pide al abrirse; si no configurás firma propia, se firma con tu clave de debug.
 
 ## Botones de los auriculares
 
@@ -116,11 +119,10 @@ Marea Link **does not play audio itself**. It remote-controls the official TIDAL
 **Limitations:** it relies on TIDAL accepting `playFromSearch`, which may break with a TIDAL update. Expect a small gap between tracks. Turn off TIDAL's Autoplay. Actual stream quality can't be read from outside the TIDAL app. Works on any Android 10+ phone (regular phones get the cover-screen layout, tablets the unfolded one); posture modes need a foldable. Only tested on a Galaxy Z Fold 7.
 
 **Setup:**
-1. Create an app at [developer.tidal.com](https://developer.tidal.com). Add the redirect URI `tidalfold://link` and enable the scopes listed above.
-2. Copy `local.properties.example` to `local.properties` and set `tidal.clientId`.
-3. Run `./gradlew assembleRelease` (JDK 21 and the Android SDK are required).
-4. Install the APK and log in.
-5. Allow restricted settings (App info → ⋮ → Allow restricted settings), then grant notification access. That permission is required to control other apps' media sessions; notifications are not read.
+1. Download the latest APK from [Releases](https://github.com/tuijack34/MareaLink/releases/latest), or build it with `./gradlew assembleRelease` (JDK 21 + Android SDK).
+2. Create an app at [developer.tidal.com](https://developer.tidal.com). Add the redirect URI `tidalfold://link` and enable the scopes listed above.
+3. Open Marea Link, paste your Client ID when asked and log in.
+4. Allow restricted settings (App info → ⋮ → Allow restricted settings), then grant notification access. That permission is required to control other apps' media sessions; notifications are not read.
 
 The UI is in Spanish (Rioplatense). PRs for translations are welcome.
 
