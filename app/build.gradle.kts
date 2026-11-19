@@ -13,11 +13,10 @@ val localProps = Properties().apply {
 }
 fun local(key: String): String? = localProps.getProperty(key)?.trim()?.takeIf { it.isNotEmpty() }
 
-val tidalClientId = local("tidal.clientId") ?: System.getenv("TIDAL_CLIENT_ID")
-    ?: throw GradleException(
-        "Falta tu Client ID de TIDAL. Creá una app en https://developer.tidal.com y agregá " +
-            "tidal.clientId=TU_CLIENT_ID en local.properties (ver README).",
-    )
+// Opcional: si no hay Client ID, la app lo pide la primera vez que se abre.
+// MAREA_PUBLIC=1 compila un APK sin Client ID aunque tengas uno en local.properties (para publicar).
+val tidalClientId = if (System.getenv("MAREA_PUBLIC") == "1") "" else
+    (local("tidal.clientId") ?: System.getenv("TIDAL_CLIENT_ID") ?: "")
 
 android {
     namespace = "uy.gero.marea"
@@ -27,8 +26,8 @@ android {
         applicationId = "uy.gero.marealink"
         minSdk = 29
         targetSdk = 36
-        versionCode = 23
-        versionName = "link-0.8.3"
+        versionCode = 24
+        versionName = "link-0.9.0"
         buildConfigField("String", "TIDAL_CLIENT_ID", "\"$tidalClientId\"")
         buildConfigField("String", "TIDAL_REDIRECT_URI", "\"tidalfold://link\"")
         buildConfigField(

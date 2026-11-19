@@ -1,6 +1,7 @@
 # Copiá este archivo como local.properties (Android Studio ya agrega sdk.dir solo).
 
-# Obligatorio: el Client ID de TU app en https://developer.tidal.com
+# Opcional: el Client ID de TU app en https://developer.tidal.com
+# (si no lo ponés, la app lo pide la primera vez que se abre)
 tidal.clientId=
 
 # Opcional: firma propia para el release. Si no lo ponés, se firma con la clave de debug.

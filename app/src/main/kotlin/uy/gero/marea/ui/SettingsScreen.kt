@@ -1,5 +1,6 @@
 package uy.gero.marea.ui
 
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -143,6 +144,12 @@ fun SettingsScreen(vm: MainViewModel, contentPadding: PaddingValues) {
             GroupCard {
                 SettingRow("Diagnóstico", "Errores y eventos internos, para reportar problemas", Icons.Default.BugReport, onClick = { vm.diagnosticsOpen = true })
                 SettingRow("Cerrar sesión", "Desconecta tu cuenta de TIDAL de Marea", Icons.AutoMirrored.Filled.Logout, onClick = { vm.logout() })
+                var editId by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+                val cid = uy.gero.marea.MareaApp.instance.clientId
+                SettingRow("Client ID de TIDAL", if (cid.length > 6) cid.take(4) + "••••" + cid.takeLast(2) else "Sin configurar", Icons.Default.Key, onClick = { editId = true })
+                if (editId) ClientIdDialog(cid, onDismiss = { editId = false }) { id ->
+                    (ctx as? android.app.Activity)?.let { uy.gero.marea.MareaApp.instance.changeClientIdAndRestart(it, id) }
+                }
             }
         }
         item {
