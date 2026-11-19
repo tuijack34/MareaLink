@@ -44,7 +44,7 @@ Marea Link es una interfaz alternativa para TIDAL. **No reproduce audio por su c
 - **Apagá la reproducción automática en TIDAL** (en los ajustes de reproducción de TIDAL) o TIDAL va a meter sus sugerencias en medio de tu cola.
 - La calidad real del stream no se puede leer desde afuera: Marea muestra "máxima disponible", la que decida TIDAL según tu plan y tu configuración.
 - Las descargas son las de la app oficial; Marea no descarga nada.
-- Probado solo en un Galaxy Z Fold 7. En otros teléfonos debería andar (el diseño se adapta), pero no está probado.
+- **Funciona en cualquier Android 10 o más nuevo**, plegable o no. En un celular común se usa el diseño de pantalla cerrada (el mismo de la pantalla de afuera del Fold); en tablets, el de pantalla abierta. Los modos carpa/libro solo existen en plegables. Probado únicamente en un Galaxy Z Fold 7: en marcas que cierran apps en segundo plano de forma agresiva (Xiaomi, Huawei, etc.) puede hacer falta sacar a Marea de la optimización de batería.
 
 ## Instalación
 
@@ -113,7 +113,7 @@ Marea Link **does not play audio itself**. It remote-controls the official TIDAL
 
 **Features:** two-pane unfolded layout, tabletop and book posture modes, a Spotify-style queue with "play next" and shuffle across whole playlists, synced lyrics (LRCLIB), TIDAL recommendations, gestures, a One UI style widget, and headset button support.
 
-**Limitations:** it relies on TIDAL accepting `playFromSearch`, which may break with a TIDAL update. Expect a small gap between tracks. Turn off TIDAL's Autoplay. Actual stream quality can't be read from outside the TIDAL app. It has only been tested on a Galaxy Z Fold 7.
+**Limitations:** it relies on TIDAL accepting `playFromSearch`, which may break with a TIDAL update. Expect a small gap between tracks. Turn off TIDAL's Autoplay. Actual stream quality can't be read from outside the TIDAL app. Works on any Android 10+ phone (regular phones get the cover-screen layout, tablets the unfolded one); posture modes need a foldable. Only tested on a Galaxy Z Fold 7.
 
 **Setup:**
 1. Create an app at [developer.tidal.com](https://developer.tidal.com). Add the redirect URI `tidalfold://link` and enable the scopes listed above.
