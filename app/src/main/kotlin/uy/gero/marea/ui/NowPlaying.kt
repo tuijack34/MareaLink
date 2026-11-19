@@ -53,6 +53,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.Pause
@@ -202,6 +203,9 @@ fun TrackTitleBlock(t: Track, vm: MainViewModel, accent: Color, center: Boolean 
                 t.albumTitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { vm.openAlbum(t.albumId) },
             )
+        }
+        IconButton(onClick = { vm.openAddToPlaylist(t) }) {
+            Icon(Icons.Default.LibraryAdd, "Agregar a una playlist", tint = MaterialTheme.colorScheme.onSurface)
         }
         IconButton(onClick = { vm.toggleFavorite(t) }) {
             val fav = vm.isFavorite(t)
