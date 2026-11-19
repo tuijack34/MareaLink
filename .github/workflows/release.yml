@@ -1,0 +1,55 @@
+# Publica un APK listo para instalar cada vez que se sube una etiqueta vX.Y.Z.
+# El APK sale SIN Client ID: la app lo pide la primera vez que se abre.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Clave de firma (secretos del repo)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Faltan los secretos de firma (KEYSTORE_BASE64, STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD). Ver README."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > release.jks
+          {
+            echo "signing.storeFile=release.jks"
+            echo "signing.storePassword=$STORE_PASSWORD"
+            echo "signing.keyAlias=$KEY_ALIAS"
+            echo "signing.keyPassword=$KEY_PASSWORD"
+          } >> local.properties
+
+      - name: Compilar
+        env:
+          MAREA_PUBLIC: '1'
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          mv app/build/outputs/apk/release/app-release.apk "MareaLink-${GITHUB_REF_NAME}.apk"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: MareaLink-*.apk
+          generate_release_notes: true
