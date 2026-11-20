@@ -125,7 +125,14 @@ class MainViewModel : ViewModel() {
         favSyncRunning = true
         viewModelScope.launch {
             val all = mutableSetOf<String>()
-            runCatching { api.collectionIds("userCollectionTracks/me/relationships/items") { ids -> all += ids; ids.forEach { favoriteTrackIds[it] = true } } }
+            uy.gero.marea.DiagLog.add("Me gusta", "Trayendo todos tus me gusta…")
+            var pages = 0
+            runCatching {
+                api.collectionIds("userCollectionTracks/me/relationships/items") { ids ->
+                    all += ids; ids.forEach { favoriteTrackIds[it] = true }
+                    if (++pages % 10 == 0) uy.gero.marea.DiagLog.add("Me gusta", "${all.size} hasta ahora…")
+                }
+            }
                 .onSuccess {
                     // los que ya no están en TIDAL (los sacaste desde otra app) pierden el corazón
                     favoriteTrackIds.keys.toList().forEach { if (it !in all && favoriteTrackIds[it] == true) favoriteTrackIds.remove(it) }

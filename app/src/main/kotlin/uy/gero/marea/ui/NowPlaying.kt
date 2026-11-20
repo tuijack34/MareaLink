@@ -1,5 +1,6 @@
 package uy.gero.marea.ui
 
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.animation.AnimatedContent
 import kotlinx.coroutines.launch
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -209,7 +210,9 @@ fun TrackTitleBlock(t: Track, vm: MainViewModel, accent: Color, center: Boolean 
         }
         IconButton(onClick = { vm.toggleFavorite(t) }) {
             val fav = vm.isFavorite(t)
-            Icon(if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Me gusta", tint = if (fav) accent else MaterialTheme.colorScheme.onSurface)
+            // con tapas oscuras el color de acento queda casi negro y el corazón "desaparece": lo aclaramos
+            val heart = if (accent.luminance() < 0.35f) androidx.compose.ui.graphics.lerp(accent, Color.White, 0.55f) else accent
+            Icon(if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder, if (fav) "Quitar de me gusta" else "Me gusta", tint = if (fav) heart else MaterialTheme.colorScheme.onSurface)
         }
     }
 }
