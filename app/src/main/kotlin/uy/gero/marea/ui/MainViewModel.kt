@@ -108,7 +108,34 @@ class MainViewModel : ViewModel() {
     var paneMinimized by mutableStateOf(false)
     var message by mutableStateOf<String?>(null)
 
-    val favoriteTrackIds = mutableStateMapOf<String, Boolean>()
+    val favoriteTrackIds = mutableStateMapOf<String, Boolean>().apply {
+        // los me gusta de la última vez, para que el corazón aparezca al instante
+        app.getSharedPreferences("marea", android.content.Context.MODE_PRIVATE).getString("likedIds", null)
+            ?.split(',')?.filter { it.isNotBlank() }?.forEach { put(it, true) }
+    }
+    private var favSyncRunning = false
+    private var favSyncedOnce = false
+
+    /**
+     * Trae TODOS tus me gusta (solo los IDs, es rápido) para marcar el corazón en cualquier lado.
+     * Antes solo se marcaban los que ya habías visto en la lista, así que el resto aparecía sin corazón.
+     */
+    fun syncFavoriteIds() {
+        if (favSyncRunning || !loggedIn) return
+        favSyncRunning = true
+        viewModelScope.launch {
+            val all = mutableSetOf<String>()
+            runCatching { api.collectionIds("userCollectionTracks/me/relationships/items") { ids -> all += ids; ids.forEach { favoriteTrackIds[it] = true } } }
+                .onSuccess {
+                    // los que ya no están en TIDAL (los sacaste desde otra app) pierden el corazón
+                    favoriteTrackIds.keys.toList().forEach { if (it !in all && favoriteTrackIds[it] == true) favoriteTrackIds.remove(it) }
+                    app.getSharedPreferences("marea", android.content.Context.MODE_PRIVATE).edit().putString("likedIds", all.joinToString(",")).apply()
+                    uy.gero.marea.DiagLog.add("Me gusta", "${all.size} temas marcados")
+                }
+                .onFailure { uy.gero.marea.DiagLog.add("Me gusta", "No pude traer la lista: ${it.message}") }
+            favSyncRunning = false
+        }
+    }
     val favoriteAlbumIds = mutableStateMapOf<String, Boolean>()
 
     val playlists = Paged(viewModelScope, "Playlists") { api.myPlaylists(it) }
@@ -122,7 +149,7 @@ class MainViewModel : ViewModel() {
         loadedLists.getOrPut(key) {
             LoadedList().also { l ->
                 viewModelScope.launch {
-                    runCatching { api.loadAllTracksFast(path, params) { chunk -> l.tracks.addAll(chunk) } }
+                    runCatching { api.loadAllTracksFast(path, params) { chunk -> l.tracks.addAll(chunk); if (key == "liked") chunk.forEach { favoriteTrackIds[it.id] = true } } }
                         .onFailure { l.error = it.message }
                     l.loading = false
                     uy.gero.marea.DiagLog.add("Lista", "$key: ${l.tracks.size} temas cargados")
@@ -189,6 +216,7 @@ class MainViewModel : ViewModel() {
             recLoading = false
         }
         playlists.ensureStarted(); albums.ensureStarted(); tracks.ensureStarted()
+        if (force || !favSyncedOnce) { favSyncedOnce = true; syncFavoriteIds() }
         if (mixesLoaded && !force) return
         mixesLoaded = true
         viewModelScope.launch {

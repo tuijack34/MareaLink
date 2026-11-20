@@ -266,6 +266,19 @@ class TidalApi(private val credentials: CredentialsProvider) {
         while (emitted < parts.size) onChunk(parts[emitted++].await())
     }
 
+    /** Solo los IDs de una colección (sin pedir los datos de cada tema): sirve para saber qué tiene "me gusta". */
+    suspend fun collectionIds(path: String, type: String = "tracks", onPage: (List<String>) -> Unit) {
+        ensureCountry()
+        var doc = get(path, emptyList())
+        var guard = 0
+        while (true) {
+            onPage(doc.data.filter { it.optString("type") == type }.map { it.optString("id") })
+            val next = doc.next ?: break
+            if (++guard > 500) break
+            doc = get(next)
+        }
+    }
+
     /** Recomendaciones personales de TIDAL (mixes diarios, descubrimiento, novedades). */
     suspend fun recommendations(): List<RecRow> = kotlinx.coroutines.coroutineScope {
         ensureCountry()
