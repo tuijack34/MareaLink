@@ -73,6 +73,17 @@ La primera vez que abrís la app te lo pide y te explica los pasos. Cada persona
 
 ¿Por qué acceso a notificaciones? Es el permiso que Android exige para ver y controlar los reproductores de otras apps (`MediaSessionManager`). Marea **no lee tus notificaciones**: solo busca la sesión de música de TIDAL.
 
+## Controlar el TIDAL de la PC (beta)
+
+Con **Marea PC** (Windows 10/11) podés manejar desde Marea el TIDAL de escritorio: play/pausa, siguiente, anterior, adelantar, aleatorio, repetir, ver la tapa y la letra sincronizada de lo que suena en la computadora.
+
+1. Bajá `MareaPC.exe` de [Releases](https://github.com/tuijack34/MareaLink/releases/latest) y abrilo. Queda como un ícono al lado del reloj (clic derecho → "Iniciar con Windows" si lo querés siempre).
+2. La primera vez Windows pregunta por el **firewall**: permitilo en **redes privadas**. Si tu wifi está marcada como "pública", cambiala a privada o no te va a encontrar.
+3. En Marea: **Ajustes → Tu PC → Buscar mi PC**, elegila y poné el código de 4 números que muestra el ícono (clic derecho).
+4. Con el botón de dispositivos del reproductor elegís si controlás el teléfono o la PC.
+
+Funciona con lo que Windows expone de cualquier reproductor (los mismos controles que las teclas multimedia), así que la cola y elegir temas siguen siendo los de TIDAL de escritorio. Los dos tienen que estar en la misma red.
+
 ## Compilarlo vos
 
 Necesitás JDK 21 y el SDK de Android (lo más fácil: [Android Studio](https://developer.android.com/studio)).

@@ -110,6 +110,9 @@ fun SettingsScreen(vm: MainViewModel, contentPadding: PaddingValues) {
             }
         }
 
+        item { GroupLabel("Tu PC") }
+        item { PcSettingsCard(vm) }
+
         item { GroupLabel("Apariencia") }
         item {
             GroupCard {

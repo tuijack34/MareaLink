@@ -102,6 +102,8 @@ class MainViewModel : ViewModel() {
     val canGoBack: Boolean get() = (stacks[tab]?.size ?: 1) > 1
 
     var fullPlayerOpen by mutableStateOf(false)
+    /** true = los controles manejan el TIDAL de la PC (Marea PC) en vez del teléfono */
+    var onPc by mutableStateOf(false)
     var diagnosticsOpen by mutableStateOf(false)
     var labOpen by mutableStateOf(false)
     /** Reproductor lateral minimizado (Fold abierto). */

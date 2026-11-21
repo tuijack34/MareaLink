@@ -112,7 +112,10 @@ private fun LoggedIn(vm: MainViewModel) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 700.dp
         val fullWidth = maxWidth
-        val showPane = wide && settings.showQueuePane && !(vm.paneMinimized && st.current != null)
+        val pcStatus by uy.gero.marea.PcLink.status.collectAsState()
+        val pc = vm.onPc
+        val hasPlayer = st.current != null || pc
+        val showPane = wide && settings.showQueuePane && !(vm.paneMinimized && hasPlayer)
         val haze = remember { HazeState() }
         if (wide) {
             // Paneles separados por una línea negra (como Spotify), con esquinas redondeadas,
@@ -139,10 +142,11 @@ private fun LoggedIn(vm: MainViewModel) {
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             FloatingNav(vm, haze, Modifier.widthIn(max = 440.dp).weight(1f, fill = false))
-                            if (!showPane && st.current != null) {
+                            if (!showPane && hasPlayer) {
                                 Box(Modifier.weight(1f)) {
                                     // minimizado: tocar o deslizar hacia arriba vuelve a abrir el reproductor
-                                    MiniPlayer(st, vm, settings.coverColors, onExpand = { if (settings.showQueuePane) vm.paneMinimized = false else vm.fullPlayerOpen = true })
+                                    val expand = { if (settings.showQueuePane) vm.paneMinimized = false else vm.fullPlayerOpen = true }
+                                    if (pc) PcMiniPlayer(vm, onExpand = expand) else MiniPlayer(st, vm, settings.coverColors, onExpand = expand)
                                 }
                             }
                         }
@@ -160,7 +164,8 @@ private fun LoggedIn(vm: MainViewModel) {
                         Row {
                             Spacer(Modifier.width(gap))
                             CompositionLocalProvider(LocalInPanel provides true) {
-                                NowPlayingPane(
+                                if (pc) PcPane(vm, Modifier.width(paneWidth).clip(panelShape), onMinimize = { vm.paneMinimized = true })
+                                else NowPlayingPane(
                                     st, vm, actions, settings.coverColors, Modifier.width(paneWidth).clip(panelShape),
                                     onMinimize = if (st.current != null) ({ vm.paneMinimized = true }) else null,
                                 )
@@ -172,7 +177,7 @@ private fun LoggedIn(vm: MainViewModel) {
         } else {
             Box(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().hazeSource(haze)) {
-                    Content(vm, actions, st.current?.id, settings.coverColors, settings.gridSize, PaddingValues(bottom = if (st.current != null) 190.dp else 120.dp))
+                    Content(vm, actions, st.current?.id, settings.coverColors, settings.gridSize, PaddingValues(bottom = if (hasPlayer) 190.dp else 120.dp))
                 }
                 // Vidrio detrás de la hora y las notificaciones: lo que scrollea por debajo se difumina
                 Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).hazeEffect(haze, glassStyle(MaterialTheme.colorScheme.background, 0.55f)))
@@ -182,8 +187,8 @@ private fun LoggedIn(vm: MainViewModel) {
                         .windowInsetsPadding(WindowInsets.navigationBars)
                         .padding(top = 12.dp, bottom = 8.dp),
                 ) {
-                    AnimatedVisibility(st.current != null, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
-                        MiniPlayer(st, vm, settings.coverColors)
+                    AnimatedVisibility(hasPlayer, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
+                        if (pc) PcMiniPlayer(vm, onExpand = { vm.fullPlayerOpen = true }) else MiniPlayer(st, vm, settings.coverColors)
                     }
                     FloatingNav(vm, haze)
                 }
@@ -192,7 +197,7 @@ private fun LoggedIn(vm: MainViewModel) {
 
         val posture = rememberFoldPosture()
         AnimatedVisibility(
-            posture.tabletop && st.current != null,
+            posture.tabletop && st.current != null && !pc,
             enter = fadeIn(tween(350)) + scaleIn(initialScale = 0.96f, animationSpec = tween(400)),
             exit = fadeOut(tween(250)) + scaleOut(targetScale = 1.04f, animationSpec = tween(300)),
         ) {
@@ -200,11 +205,11 @@ private fun LoggedIn(vm: MainViewModel) {
         }
 
         AnimatedVisibility(
-            vm.fullPlayerOpen && st.current != null && !posture.tabletop,
+            vm.fullPlayerOpen && hasPlayer && !(posture.tabletop && !pc),
             enter = slideInVertically { it } + fadeIn(),
             exit = slideOutVertically { it } + fadeOut(),
         ) {
-            FullPlayer(st, vm, actions, settings.coverColors)
+            if (pc) PcFullPlayer(vm, wide) else FullPlayer(st, vm, actions, settings.coverColors)
         }
 
         AnimatedVisibility(vm.labOpen, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {

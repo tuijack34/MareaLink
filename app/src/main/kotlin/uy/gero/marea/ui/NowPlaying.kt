@@ -230,7 +230,12 @@ fun SuggestButton(st: PlayerUiState, player: PlayerController, modifier: Modifie
 // ---------- Letra ----------
 
 @Composable
-fun LyricsView(track: Track?, st: PlayerUiState, vm: MainViewModel, accent: Color, modifier: Modifier = Modifier) {
+fun LyricsView(
+    track: Track?, st: PlayerUiState, vm: MainViewModel, accent: Color, modifier: Modifier = Modifier,
+    // para la PC: otra fuente de posición y otra forma de saltar
+    position: kotlinx.coroutines.flow.StateFlow<Float> = vm.player.position,
+    onSeek: (Float) -> Unit = { vm.player.seekTo(it) },
+) {
     var lyrics by remember(track?.id) { mutableStateOf<Lyrics?>(null) }
     var loading by remember(track?.id) { mutableStateOf(true) }
     var failed by remember(track?.id) { mutableStateOf<String?>(null) }
@@ -251,7 +256,7 @@ fun LyricsView(track: Track?, st: PlayerUiState, vm: MainViewModel, accent: Colo
             loading -> LoadingBox()
             l == null -> ErrorBox(if (failed != null) "No pude cargar la letra ($failed)" else "No encontré la letra de este tema")
             l.synced != null -> Box(Modifier.fillMaxSize()) {
-                SyncedLyrics(l, st, vm.player, accent)
+                SyncedLyrics(l, position, onSeek, accent)
                 Text("Letra: ${l.source}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp))
             }
             else -> Text(
@@ -265,9 +270,9 @@ fun LyricsView(track: Track?, st: PlayerUiState, vm: MainViewModel, accent: Colo
 }
 
 @Composable
-private fun SyncedLyrics(l: Lyrics, st: PlayerUiState, player: PlayerController, accent: Color) {
+private fun SyncedLyrics(l: Lyrics, position: kotlinx.coroutines.flow.StateFlow<Float>, onSeek: (Float) -> Unit, accent: Color) {
     val lines = l.synced.orEmpty()
-    val live by player.position.collectAsState()
+    val live by position.collectAsState()
     val posMs = (live * 1000).toLong() + 250
     val active = lines.indexOfLast { it.timeMs <= posMs }.coerceAtLeast(0)
     val state = rememberLazyListState()
@@ -291,7 +296,7 @@ private fun SyncedLyrics(l: Lyrics, st: PlayerUiState, player: PlayerController,
                     .graphicsLayer { scaleX = scale; scaleY = scale; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }
                     .then(if (android.os.Build.VERSION.SDK_INT >= 31 && blurDp > 0.1f) Modifier.blur(blurDp.dp) else Modifier)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { player.seekTo(lines[i].timeMs / 1000f) }
+                    .clickable { onSeek(lines[i].timeMs / 1000f) }
                     .padding(horizontal = 24.dp, vertical = 8.dp),
             )
         }
@@ -449,6 +454,7 @@ fun NowPlayingPane(st: PlayerUiState, vm: MainViewModel, actions: TrackActions, 
                                 Text("REPRODUCIENDO DESDE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(st.sourceLabel ?: "TIDAL", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
+                            DeviceButton(vm)
                             IconButton(onClick = { uy.gero.marea.MareaApp.instance.settings.update { it.copy(paneScrollAll = !it.paneScrollAll) } }) {
                                 Crossfade(scrollAll, label = "pin") { all ->
                                     Icon(
@@ -532,6 +538,7 @@ fun FullPlayer(st: PlayerUiState, vm: MainViewModel, actions: TrackActions, cove
                             Icon(if (stacked) Icons.Default.VerticalSplit else Icons.Default.ViewAgenda, if (stacked) "Letra al costado" else "Letra abajo")
                         }
                     }
+                    DeviceButton(vm)
                     SuggestButton(st, vm.player)
                 }
                 val stackedMode = uy.gero.marea.MareaApp.instance.settings.state.collectAsState().value.playerStacked

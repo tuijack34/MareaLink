@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
         ) { askedNotif = true; requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 2) }
         super.onResume()
         if (!MareaApp.instance.hasClientId) return
+        PcLink.resume()
         // al volver (por ejemplo, después de dar el permiso o de pasar por TIDAL) nos reconectamos
         MareaApp.instance.player.connect()
         // Puente de los botones de los auriculares (se apaga solo tras 15 min en pausa)

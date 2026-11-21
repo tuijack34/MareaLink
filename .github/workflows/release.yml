@@ -65,11 +65,24 @@ jobs:
           ./gradlew assembleRelease --no-daemon
           mv app/build/outputs/apk/release/app-release.apk "MareaLink-${{ steps.ver.outputs.tag }}.apk"
 
+      - uses: actions/setup-dotnet@v4
+        if: steps.ver.outputs.skip != 'true'
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Compilar Marea PC (Windows)
+        if: steps.ver.outputs.skip != 'true'
+        run: |
+          dotnet publish pc/MareaPC/MareaPC.csproj -c Release -o pcout
+          mv pcout/MareaPC.exe MareaPC.exe
+
       - uses: softprops/action-gh-release@v2
         if: steps.ver.outputs.skip != 'true'
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: Marea Link ${{ steps.ver.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          files: MareaLink-*.apk
+          files: |
+            MareaLink-*.apk
+            MareaPC.exe
           generate_release_notes: true
