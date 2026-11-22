@@ -122,12 +122,14 @@ fun GestureCover(
     onPrevious: () -> Unit,
     onDoubleTap: () -> Unit,
     onTap: (() -> Unit)? = null,
+    onLongPress: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     var hearts by remember { mutableIntStateOf(0) }
     val haptics = LocalHapticFeedback.current
     val dbl by androidx.compose.runtime.rememberUpdatedState(onDoubleTap)
     val tap by androidx.compose.runtime.rememberUpdatedState(onTap)
+    val long by androidx.compose.runtime.rememberUpdatedState(onLongPress)
     Box(
         modifier
             .swipeHorizontal(onSwipeLeft = onNext, onSwipeRight = onPrevious, thresholdDp = 60)
@@ -135,6 +137,7 @@ fun GestureCover(
                 detectTapGestures(
                     onDoubleTap = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); dbl(); hearts++ },
                     onTap = { tap?.invoke() },
+                    onLongPress = { long?.let { haptics.performHapticFeedback(HapticFeedbackType.LongPress); it() } },
                 )
             },
         contentAlignment = Alignment.Center,

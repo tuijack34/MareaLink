@@ -754,6 +754,26 @@ class PlayerController(private val app: MareaApp) {
         _state.update { it.copy(queue = q, index = q.indexOf(cur)) }
     }
 
+    /**
+     * Mueve un tema dentro de "A continuación" (índices absolutos de la cola, siempre después del actual).
+     * Mantiene bien el bloque "En tu cola": si lo soltás dentro de ese bloque pasa a ser parte de él.
+     */
+    fun moveUpNext(from: Int, to: Int, forceManual: Boolean = false) {
+        val st = _state.value
+        if (from == to || from <= st.index || to <= st.index || from !in st.queue.indices || to !in st.queue.indices) return
+        takeOverQueue()
+        _state.update {
+            val q = it.queue.toMutableList().apply { add(to, removeAt(from)) }
+            val fromManual = from <= it.index + it.manualCount
+            val toManual = forceManual || to <= it.index + it.manualCount
+            val manual = it.manualCount + (if (toManual) 1 else 0) - (if (fromManual) 1 else 0)
+            it.copy(queue = q, manualCount = manual.coerceIn(0, q.size - it.index - 1))
+        }
+    }
+
+    /** "Reproducir a continuación" sobre un tema que ya está en la cola: lo sube al primer lugar sin duplicarlo. */
+    fun moveToNext(from: Int) = moveUpNext(from, _state.value.index + 1, forceManual = true)
+
     fun clearUpNext() { _state.update { it.copy(queue = it.queue.take(it.index + 1), manualCount = 0) } }
 
     fun toggleShuffle() {

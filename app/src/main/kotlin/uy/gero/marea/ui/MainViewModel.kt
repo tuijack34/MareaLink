@@ -392,6 +392,21 @@ class MainViewModel : ViewModel() {
     }
 
     var addToPlaylistFor by mutableStateOf<Track?>(null)
+    /** Tema con el menú abierto (⋮ del reproductor o mantener apretada la tapa). */
+    var sheetTrack by mutableStateOf<Track?>(null)
+
+    val trackActions: TrackActions by lazy {
+        TrackActions(
+            onPlayNext = { player.playNext(it); message = "Suena a continuación" },
+            onAddToQueue = { val pos = player.addToQueue(listOf(it)); message = if (pos == 1) "Suena a continuación" else "Agregado a tu cola (#$pos)" },
+            onRadio = { player.startRadio(it) },
+            onAlbum = { openAlbum(it.albumId) },
+            onArtist = { openArtist(it.artists.firstOrNull()?.id) },
+            onToggleFavorite = { toggleFavorite(it) },
+            isFavorite = { isFavorite(it) },
+            onAddToPlaylist = { openAddToPlaylist(it) },
+        )
+    }
     val ownedPlaylists = mutableStateListOf<Playlist>()
     var ownedLoading by mutableStateOf(false)
 

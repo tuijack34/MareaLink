@@ -29,13 +29,15 @@ Marea Link es una interfaz alternativa para TIDAL. **No reproduce audio por su c
 
 - **Pantalla abierta de verdad**: biblioteca a la izquierda y reproductor al costado (estilo Spotify), panel que se minimiza deslizando hacia abajo, parte de arriba fijable o scrolleable.
 - **Modo carpa / libro** (plegado a 90°): arriba la tapa, la letra o la cola; abajo los controles, con animaciones.
-- **Cola propia** estilo Spotify: "Agregar a la cola" va primero, aleatorio sobre la playlist entera (aunque tenga miles de temas), deslizar para quitar o saltar. Se guarda si Android cierra la app.
+- **Cola propia** estilo Spotify: "Agregar a la cola" va primero, aleatorio sobre la playlist entera (aunque tenga miles de temas), reordenar arrastrando, deslizar para quitar o subir a "a continuación". Se guarda si Android cierra la app.
 - **Letras sincronizadas** (vía [LRCLIB](https://lrclib.net)), con la línea activa resaltada; tocar una línea salta a ese momento.
 - **Inicio** con tus playlists, mixes y recomendaciones de TIDAL.
 - **Gestos**: deslizar la tapa para cambiar de tema, doble toque para "me gusta".
 - **Widget** estilo One UI con fondo de vidrio, transparencia y colores configurables.
 - **Botones de los auriculares/reloj** controlan la cola de Marea (ver más abajo).
-- Me gusta, agregar a playlists (también desde el reproductor), crear playlists, **anclar playlists** arriba de todo, sugerencias y radio de artista.
+- Me gusta, agregar a playlists (también desde el reproductor), crear playlists, **anclar playlists** arriba de todo, **buscar dentro de una playlist**, sugerencias y radio de artista.
+- Menú del tema en el reproductor (⋮ o mantener apretada la tapa): ir al álbum o al artista, compartir, radio.
+- Formato del tema (ej. 24-bit · 96 kHz) cuando TIDAL lo informa.
 
 ## Limitaciones (leelas antes)
 

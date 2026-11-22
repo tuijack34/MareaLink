@@ -31,6 +31,7 @@ sealed class MediaBridge
     public string CoverKey { get; private set; } = "";
     public byte[]? Cover { get; private set; }
 
+    string _coverHash = "";
     TimeSpan _pos, _end;
     DateTimeOffset _posAt;
 
@@ -112,11 +113,30 @@ sealed class MediaBridge
                     Artist = p.Artist ?? "";
                     Album = p.AlbumTitle ?? "";
                     var key = $"{Title}|{Artist}|{Album}";
-                    if (key != CoverKey)
+                    // TIDAL cambia primero el título y la tapa llega después (a veces sin volver a avisar).
+                    // Por eso comparamos la imagen en sí, no el título, y la releemos un par de veces al cambiar de tema.
+                    var trackChanged = key != CoverKey;
+                    CoverKey = key;
+                    var bytes = p.Thumbnail != null ? await ReadAll(p.Thumbnail) : null;
+                    var hash = bytes != null ? Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(bytes)) : "";
+                    if (hash != _coverHash)
                     {
-                        CoverKey = key;
-                        Cover = p.Thumbnail != null ? await ReadAll(p.Thumbnail) : null;
+                        _coverHash = hash;
+                        Cover = bytes;
                         CoverChanged?.Invoke();
+                    }
+                    if (trackChanged)
+                    {
+                        var k = key;
+                        _ = Task.Run(async () =>
+                        {
+                            foreach (var ms in new[] { 700, 1800, 4000 })
+                            {
+                                await Task.Delay(ms);
+                                if (CoverKey != k) return;
+                                await Refresh();
+                            }
+                        });
                     }
                 }
             }

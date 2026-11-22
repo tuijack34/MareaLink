@@ -93,16 +93,7 @@ fun AppRoot(vm: MainViewModel, onLogin: () -> Unit) {
 private fun LoggedIn(vm: MainViewModel) {
     val settings by MareaApp.instance.settings.state.collectAsState()
     val st by vm.player.state.collectAsState()
-    val actions = TrackActions(
-        onPlayNext = { vm.player.playNext(it); vm.message = "Suena a continuación" },
-        onAddToQueue = { val pos = vm.player.addToQueue(listOf(it)); vm.message = if (pos == 1) "Suena a continuación" else "Agregado a tu cola (#$pos)" },
-        onRadio = { vm.player.startRadio(it) },
-        onAlbum = { vm.openAlbum(it.albumId) },
-        onArtist = { vm.openArtist(it.artists.firstOrNull()?.id) },
-        onToggleFavorite = { vm.toggleFavorite(it) },
-        isFavorite = { vm.isFavorite(it) },
-        onAddToPlaylist = { vm.openAddToPlaylist(it) },
-    )
+    val actions = vm.trackActions
 
     BackHandler(enabled = vm.fullPlayerOpen || vm.canGoBack || vm.tab != Tab.HOME || vm.diagnosticsOpen || vm.labOpen) { vm.back() }
 
@@ -227,6 +218,7 @@ private fun LoggedIn(vm: MainViewModel) {
 
         LinkBanner(vm, st, Modifier.align(Alignment.TopCenter))
         vm.addToPlaylistFor?.let { t -> AddToPlaylistSheet(vm, t) }
+        vm.sheetTrack?.let { t -> TrackSheet(vm, t) }
 
         vm.message?.let { msg ->
             Snackbar(

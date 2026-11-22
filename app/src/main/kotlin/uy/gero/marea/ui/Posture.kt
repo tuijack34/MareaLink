@@ -150,7 +150,7 @@ fun TabletopPlayer(st: PlayerUiState, vm: MainViewModel, actions: TrackActions, 
                             GestureCover(
                                 Modifier.fillMaxHeight().aspectRatio(1f).graphicsLayer { scaleX = coverPop.value; scaleY = coverPop.value },
                                 onNext = { vm.player.next() }, onPrevious = { vm.player.previous() },
-                                onDoubleTap = { if (!vm.isFavorite(t)) vm.toggleFavorite(t) },
+                                onLongPress = { vm.player.state.value.current?.let { vm.sheetTrack = it } }, onDoubleTap = { if (!vm.isFavorite(t)) vm.toggleFavorite(t) },
                             ) { BreathingCover(t, st.isPlaying, Modifier.fillMaxSize()) }
                             Spacer(Modifier.width(28.dp))
                             Column(Modifier.weight(1f)) {

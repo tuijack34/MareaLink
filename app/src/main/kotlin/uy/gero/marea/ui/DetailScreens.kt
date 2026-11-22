@@ -1,5 +1,8 @@
 package uy.gero.marea.ui
 
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.foundation.background
@@ -221,6 +224,7 @@ fun TrackCollection(
     extraAction: (@Composable () -> Unit)? = null,
 ) {
     val tracks = loaded.tracks
+    var query by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     val collapsed by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
     Box(Modifier.fillMaxSize()) {
@@ -235,10 +239,28 @@ fun TrackCollection(
                     favorite = null, onFavorite = null, onSubtitle = null, headerArt = headerArt, extraAction = extraAction,
                 )
             }
+            // buscador dentro de la playlist / álbum (sin tildes ni mayúsculas)
+            if (tracks.size > 8) item {
+                OutlinedTextField(
+                    value = query, onValueChange = { query = it }, singleLine = true,
+                    placeholder = { Text("Buscar en ${if (tracks.size == 1) "este tema" else "estos ${tracks.size} temas"}…") },
+                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                    trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, "Borrar") } },
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
             if (tracks.isEmpty() && loaded.loading) items(6) { SkeletonRow() }
-            items(tracks.size, key = { tracks[it].id + "_" + it }) { i ->
+            val q = norm(query.trim())
+            val shown: List<Int> = if (q.isEmpty()) tracks.indices.toList() else tracks.indices.filter { i ->
+                val t = tracks[i]
+                norm(t.fullTitle).contains(q) || norm(t.artistLine).contains(q) || norm(t.albumTitle.orEmpty()).contains(q)
+            }
+            if (q.isNotEmpty() && shown.isEmpty()) item { ErrorBox("Nada con \"${query.trim()}\"" + if (loaded.loading) " (todavía estoy cargando la lista)" else "") }
+            items(shown.size, key = { tracks[shown[it]].id + "_" + shown[it] }) { j ->
+                val i = shown[j]
                 val tr = tracks[i]
-                Box(Modifier.groupItem(i, tracks.size)) {
+                Box(Modifier.groupItem(j, shown.size)) {
                     TrackRow(tr, tr.id == currentId, actions, onClick = { vm.playLoadedFrom(loaded, i, title) })
                 }
             }
@@ -325,3 +347,8 @@ fun ArtistScreen(vm: MainViewModel, screen: Screen.ArtistS, actions: TrackAction
 fun CoroutineScope.launchCatching(block: suspend () -> Unit) {
     launch { runCatching { block() }.onFailure { android.util.Log.w("Marea", "acción falló", it) } }
 }
+
+
+/** Para buscar sin importar tildes ni mayúsculas. */
+private fun norm(s: String): String =
+    java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "").lowercase()

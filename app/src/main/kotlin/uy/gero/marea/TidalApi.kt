@@ -361,6 +361,47 @@ class TidalApi(private val credentials: CredentialsProvider) {
     suspend fun artist(artistId: String): Artist? = artists(listOf(artistId)).firstOrNull()
 
     /** Diagnóstico: le pide a TIDAL el manifiesto del tema y devuelve qué tipo de stream daría. */
+    private val formatCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /**
+     * Formato exacto que TIDAL ofrece para el tema (ej. "24-bit · 96 kHz"), sacado del manifiesto MPEG-DASH.
+     * Es lo máximo disponible para ese tema; lo que suena depende de la calidad que tengas elegida en TIDAL.
+     * Devuelve null si TIDAL no lo dice (por ejemplo si solo da la vista previa).
+     */
+    suspend fun audioFormat(trackId: String): String? {
+        formatCache[trackId]?.let { return it.ifEmpty { null } }
+        val r = runCatching {
+            val doc = get(
+                "trackManifests/$trackId",
+                listOf(
+                    "adaptive" to "false", "manifestType" to "MPEG_DASH", "uriScheme" to "DATA", "usage" to "PLAYBACK",
+                    "formats" to "FLAC", "formats" to "FLAC_HIRES",
+                ),
+            )
+            val at = doc.data.firstOrNull()?.attrs() ?: return@runCatching null
+            val formats = at.optJSONArray("formats")?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()
+            val uri = at.optString("uri")
+            val mpd = when {
+                uri.startsWith("data:") -> runCatching { String(android.util.Base64.decode(uri.substringAfter(","), android.util.Base64.DEFAULT)) }.getOrDefault("")
+                else -> ""
+            }
+            val isFlac = mpd.contains("codecs=\"flac\"", ignoreCase = true) || mpd.contains("flac", ignoreCase = true)
+            val rate = Regex("audioSamplingRate=\"(\\d+)\"").findAll(mpd).mapNotNull { it.groupValues[1].toIntOrNull() }.maxOrNull()
+            val bits = Regex("(?:bitDepth|bitsPerSample)=\"(\\d+)\"", RegexOption.IGNORE_CASE).find(mpd)?.groupValues?.get(1)?.toIntOrNull()
+            DiagLog.add("Calidad", "Tema $trackId: presentación=${at.optString("trackPresentation")} formatos=$formats flac=$isFlac rate=$rate bits=$bits")
+            if (!isFlac || rate == null) return@runCatching null
+            val depth = bits ?: if ("FLAC_HIRES" in formats) 24 else 16
+            "$depth-bit · ${khz(rate)}"
+        }.onFailure { DiagLog.add("Calidad", "Tema $trackId: ${it.message}") }.getOrNull()
+        formatCache[trackId] = r ?: ""
+        return r
+    }
+
+    private fun khz(hz: Int): String {
+        val k = hz / 1000.0
+        return if (k == k.toLong().toDouble()) "${k.toLong()} kHz" else "%.1f kHz".format(java.util.Locale.US, k)
+    }
+
     suspend fun probeManifest(trackId: String): String {
         val c = credentials.getCredentials().successData
         val head = "Usuario=${c?.userId} scopes=${c?.grantedScopes?.sorted()} cliente=${c?.clientId}"

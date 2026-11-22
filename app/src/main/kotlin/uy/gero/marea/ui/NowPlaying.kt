@@ -1,5 +1,12 @@
 package uy.gero.marea.ui
 
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.animation.AnimatedContent
 import kotlinx.coroutines.launch
@@ -126,9 +133,18 @@ fun StreamQuality(st: PlayerUiState, center: Boolean = false) {
                 }
                 if (t.isAtmos) { Spacer(Modifier.width(6.dp)); QualityBadge("ATMOS") }
                 Spacer(Modifier.width(8.dp))
+                // formato exacto si TIDAL lo informa; si no, lo que garantiza cada nivel de TIDAL
+                val exact by androidx.compose.runtime.produceState<String?>(null, t.id) { value = uy.gero.marea.MareaApp.instance.api.audioFormat(t.id) }
+                val lossless = t.tags.any { it.contains("LOSSLESS") }
+                val spec = exact ?: when {
+                    t.isHiRes -> "24-bit · hasta 192 kHz"
+                    lossless -> "16-bit · 44.1 kHz"
+                    else -> null
+                }
                 Text(
-                    if (t.isHiRes || t.tags.any { it.contains("LOSSLESS") }) "máxima disponible · la reproduce TIDAL" else "la reproduce TIDAL",
+                    if (spec != null) "$spec · máx. disponible" else "la reproduce TIDAL",
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
             return@Row
@@ -214,6 +230,7 @@ fun TrackTitleBlock(t: Track, vm: MainViewModel, accent: Color, center: Boolean 
             val heart = if (accent.luminance() < 0.35f) androidx.compose.ui.graphics.lerp(accent, Color.White, 0.55f) else accent
             Icon(if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder, if (fav) "Quitar de me gusta" else "Me gusta", tint = if (fav) heart else MaterialTheme.colorScheme.onSurface)
         }
+        IconButton(onClick = { vm.sheetTrack = t }) { Icon(Icons.Default.MoreVert, "Más opciones") }
     }
 }
 
@@ -310,6 +327,18 @@ private fun SyncedLyrics(l: Lyrics, position: kotlinx.coroutines.flow.StateFlow<
 fun QueueView(st: PlayerUiState, vm: MainViewModel, actions: TrackActions, modifier: Modifier = Modifier) {
     val player = vm.player
     val upNext = st.upNext
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    // claves estables (id + número de aparición): así un tema arrastrado no pierde el dedo al cambiar de lugar
+    val keys = remember(upNext) {
+        val seen = HashMap<String, Int>()
+        upNext.map { t -> val n = seen.merge(t.id, 1, Int::plus)!!; "${t.id}#$n" }
+    }
+    val latestKeys by androidx.compose.runtime.rememberUpdatedState(keys)
+    val latestIndex by androidx.compose.runtime.rememberUpdatedState(st.index)
+    var dragKey by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var rowH by remember { mutableFloatStateOf(1f) }
+
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
             Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp)) {
@@ -323,23 +352,67 @@ fun QueueView(st: PlayerUiState, vm: MainViewModel, actions: TrackActions, modif
         }
         if (upNext.isEmpty()) item { ErrorBox("La cola está vacía. Tocá \"Sugeridas\" para seguir escuchando.") }
         val manual = st.manualCount.coerceAtMost(upNext.size)
+
         @Composable
-        fun row(i: Int, count: Int, offset: Int) {
-            val realIndex = st.index + 1 + offset + i
-            val t = upNext[offset + i]
-            Row(Modifier.groupItem(i, count).swipeHorizontal(onSwipeLeft = { player.removeFromQueue(realIndex) }, onSwipeRight = { player.jumpTo(realIndex) }), verticalAlignment = Alignment.CenterVertically) {
+        fun row(pos: Int, groupI: Int, count: Int) {
+            val realIndex = st.index + 1 + pos
+            val t = upNext[pos]
+            val key = keys[pos]
+            val dragging = dragKey == key
+            Row(
+                Modifier
+                    .then(if (dragging) Modifier.zIndex(2f).graphicsLayer { translationY = dragOffset; shadowElevation = 18f; scaleX = 1.02f; scaleY = 1.02f } else Modifier)
+                    .onSizeChanged { if (it.height > 0) rowH = it.height.toFloat() }
+                    .groupItem(groupI, count)
+                    // derecha = subir a "a continuación" (ya no salta ni borra lo del medio) · izquierda = quitar
+                    .swipeHorizontal(
+                        onSwipeLeft = { player.removeFromQueue(realIndex) },
+                        onSwipeRight = { player.moveToNext(realIndex); vm.message = "Suena a continuación" },
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Box(Modifier.weight(1f)) { TrackRow(t, false, actions, onClick = { player.jumpTo(realIndex) }, swipe = false) }
                 IconButton(onClick = { player.removeFromQueue(realIndex) }) { Icon(Icons.Default.Close, "Quitar") }
+                // manija para reordenar: arrastrá hacia arriba o abajo
+                Icon(
+                    Icons.Default.DragHandle, "Mover",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 12.dp).size(28.dp).pointerInput(key) {
+                        detectDragGestures(
+                            onDragStart = { dragKey = key; dragOffset = 0f; haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) },
+                            onDragEnd = { dragKey = null; dragOffset = 0f },
+                            onDragCancel = { dragKey = null; dragOffset = 0f },
+                            onDrag = { change, amount ->
+                                change.consume()
+                                dragOffset += amount.y
+                                val h = rowH.coerceAtLeast(1f)
+                                var cur = latestKeys.indexOf(key)
+                                while (cur >= 0 && dragOffset > h * 0.55f && cur < latestKeys.size - 1) {
+                                    val base = latestIndex + 1
+                                    player.moveUpNext(base + cur, base + cur + 1)
+                                    dragOffset -= h; cur++
+                                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                }
+                                while (cur > 0 && dragOffset < -h * 0.55f) {
+                                    val base = latestIndex + 1
+                                    player.moveUpNext(base + cur, base + cur - 1)
+                                    dragOffset += h; cur--
+                                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                }
+                            },
+                        )
+                    },
+                )
             }
         }
         if (manual > 0) {
             item { GroupLabel("En tu cola") }
-            items(manual, key = { "m${st.index + 1 + it}_${upNext[it].id}" }) { i -> Box(Modifier.animateItem()) { row(i, manual, 0) } }
+            items(manual, key = { keys[it] }) { i -> Box(if (dragKey == keys[i]) Modifier.zIndex(2f) else Modifier.animateItem()) { row(i, i, manual) } }
         }
         val restCount = upNext.size - manual
         if (restCount > 0) {
             item { GroupLabel(if (st.sourceLabel != null) "Después, de: ${st.sourceLabel}" else "Después") }
-            items(restCount, key = { "r${st.index + 1 + manual + it}_${upNext[manual + it].id}" }) { i -> Box(Modifier.animateItem()) { row(i, restCount, manual) } }
+            items(restCount, key = { keys[manual + it] }) { i -> Box(if (dragKey == keys[manual + i]) Modifier.zIndex(2f) else Modifier.animateItem()) { row(manual + i, i, restCount) } }
         }
     }
 }
@@ -469,7 +542,7 @@ fun NowPlayingPane(st: PlayerUiState, vm: MainViewModel, actions: TrackActions, 
                         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.Top) {
                             GestureCover(
                                 Modifier.size(140.dp), onNext = { vm.player.next() }, onPrevious = { vm.player.previous() },
-                                onDoubleTap = { if (!vm.isFavorite(t)) vm.toggleFavorite(t) }, onTap = { vm.fullPlayerOpen = true },
+                                onLongPress = { vm.player.state.value.current?.let { vm.sheetTrack = it } }, onDoubleTap = { if (!vm.isFavorite(t)) vm.toggleFavorite(t) }, onTap = { vm.fullPlayerOpen = true },
                             ) { BreathingCover(t, st.isPlaying, Modifier.fillMaxSize()) }
                         }
                         AnimatedContent(
@@ -552,7 +625,7 @@ fun FullPlayer(st: PlayerUiState, vm: MainViewModel, actions: TrackActions, cove
                                     GestureCover(
                                         Modifier.fillMaxWidth().aspectRatio(1f).weight(1f, fill = false),
                                         onNext = { vm.player.next() }, onPrevious = { vm.player.previous() },
-                                        onDoubleTap = { if (!vm.isFavorite(t)) vm.toggleFavorite(t) },
+                                        onLongPress = { vm.player.state.value.current?.let { vm.sheetTrack = it } }, onDoubleTap = { if (!vm.isFavorite(t)) vm.toggleFavorite(t) },
                                     ) { BreathingCover(t, st.isPlaying, Modifier.fillMaxSize()) }
                                     Spacer(Modifier.height(20.dp))
                                     TrackTitleBlock(t, vm, accent)
@@ -589,7 +662,7 @@ fun FullPlayer(st: PlayerUiState, vm: MainViewModel, actions: TrackActions, cove
                             GestureCover(
                                 Modifier.fillMaxWidth().widthIn(max = 520.dp).aspectRatio(1f).weight(1f, fill = false),
                                 onNext = { vm.player.next() }, onPrevious = { vm.player.previous() },
-                                onDoubleTap = { if (!vm.isFavorite(t)) vm.toggleFavorite(t) },
+                                onLongPress = { vm.player.state.value.current?.let { vm.sheetTrack = it } }, onDoubleTap = { if (!vm.isFavorite(t)) vm.toggleFavorite(t) },
                             ) { BreathingCover(t, st.isPlaying, Modifier.fillMaxSize()) }
                             Spacer(Modifier.height(20.dp))
                             TrackTitleBlock(t, vm, accent)
@@ -614,7 +687,7 @@ fun FullPlayer(st: PlayerUiState, vm: MainViewModel, actions: TrackActions, cove
                                 PlayerTab.NOW -> Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalArrangement = Arrangement.Center) {
                                     GestureCover(
                                         Modifier.fillMaxWidth().aspectRatio(1f), onNext = { vm.player.next() }, onPrevious = { vm.player.previous() },
-                                        onDoubleTap = { if (!vm.isFavorite(t)) vm.toggleFavorite(t) },
+                                        onLongPress = { vm.player.state.value.current?.let { vm.sheetTrack = it } }, onDoubleTap = { if (!vm.isFavorite(t)) vm.toggleFavorite(t) },
                                     ) { BreathingCover(t, st.isPlaying, Modifier.fillMaxSize()) }
                                 }
                                 PlayerTab.LYRICS -> LyricsView(t, st, vm, accent)
