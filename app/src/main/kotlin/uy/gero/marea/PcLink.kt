@@ -93,6 +93,14 @@ object PcLink {
     val position: StateFlow<Float> = _position
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
+    /**
+     * El mismo tema buscado en el catálogo de TIDAL (por título, artista y álbum).
+     * TIDAL de escritorio a veces le pasa a Windows la tapa del tema anterior: con esto usamos la oficial.
+     */
+    private val _catalog = MutableStateFlow<Track?>(null)
+    val catalog: StateFlow<Track?> = _catalog
+    private var catalogKey: String? = null
+    private var catalogJob: Job? = null
     private val _pcName = MutableStateFlow<String?>(null)
     val pcName: StateFlow<String?> = _pcName
 
@@ -300,6 +308,7 @@ object PcLink {
                 )
                 _state.value = s
                 _position.value = s.positionMs / 1000f
+                if (s.hasSession && s.coverKey != catalogKey) resolveCatalog(s)
             }
             "cover" -> {
                 val data = o.optString("data").takeIf { it.isNotBlank() && it != "null" }
@@ -319,6 +328,37 @@ object PcLink {
                     _position.value = p
                 }
                 delay(250)
+            }
+        }
+    }
+
+    private fun norm(x: String): String =
+        java.text.Normalizer.normalize(x, java.text.Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
+            .lowercase().replace(Regex("\\(.*?\\)|\\[.*?]"), " ").replace(Regex("[^a-z0-9]+"), " ").trim()
+
+    private fun resolveCatalog(s: PcState) {
+        catalogKey = s.coverKey
+        _catalog.value = null
+        catalogJob?.cancel()
+        if (s.title.isBlank()) return
+        catalogJob = scope.launch {
+            val found = runCatching {
+                val firstArtist = s.artist.split(",", "&", " feat", " ft.").first().trim()
+                val res = MareaApp.instance.api.search("${s.title} $firstArtist")
+                val t0 = norm(s.title); val a0 = norm(firstArtist); val al0 = norm(s.album)
+                res.tracks.map { t ->
+                    var score = 0
+                    val tt = norm(t.title)
+                    if (tt == t0) score += 4 else if (tt.contains(t0) || t0.contains(tt)) score += 2
+                    if (t.artists.any { norm(it.name) == a0 }) score += 3 else if (norm(t.artistLine).contains(a0)) score += 1
+                    if (al0.isNotEmpty() && norm(t.albumTitle.orEmpty()) == al0) score += 3
+                    if (s.durationMs > 0 && kotlin.math.abs(t.durationSec - s.durationMs / 1000) <= 3) score += 2
+                    t to score
+                }.filter { it.second >= 6 }.maxByOrNull { it.second }?.first
+            }.getOrNull()
+            if (catalogKey == s.coverKey) {
+                _catalog.value = found
+                DiagLog.add("PC", if (found != null) "Tapa del catálogo: ${found.title} — ${found.albumTitle}" else "No encontré \"${s.title}\" en el catálogo; uso la tapa de Windows")
             }
         }
     }

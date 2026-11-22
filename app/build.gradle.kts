@@ -28,8 +28,8 @@ android {
         applicationId = "uy.gero.marealink"
         minSdk = 29
         targetSdk = 36
-        versionCode = 29
-        versionName = "link-0.11.0"
+        versionCode = 30
+        versionName = "link-0.11.1"
         buildConfigField("String", "TIDAL_CLIENT_ID", "\"$tidalClientId\"")
         buildConfigField("String", "TIDAL_REDIRECT_URI", "\"tidalfold://link\"")
         buildConfigField(

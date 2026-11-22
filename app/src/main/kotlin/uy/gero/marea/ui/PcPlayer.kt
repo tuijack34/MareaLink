@@ -1,5 +1,8 @@
 package uy.gero.marea.ui
 
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
@@ -69,6 +72,8 @@ import uy.gero.marea.PcLink
 /** Color dominante de la tapa que manda la PC (para el fondo, como con los temas del teléfono). */
 @Composable
 private fun rememberPcTint(fallback: Color): Color {
+    val cat by PcLink.catalog.collectAsState()
+    cat?.let { return rememberCoverColor(it.coverLarge ?: it.cover, true, fallback) }
     val bmp by PcLink.cover.collectAsState()
     val target = remember(bmp) {
         bmp?.let { b ->
@@ -85,6 +90,8 @@ private fun rememberPcTint(fallback: Color): Color {
 @Composable
 private fun PcCover(modifier: Modifier) {
     val bmp by PcLink.cover.collectAsState()
+    val cat by PcLink.catalog.collectAsState()
+    cat?.let { t -> SmoothCover(t.coverLarge ?: t.cover, modifier, RoundedCornerShape(28.dp)); return }
     Box(modifier.clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
         Crossfade(bmp, label = "pcCover") { b ->
             if (b != null) Image(b.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -150,10 +157,12 @@ private fun PcControls(accent: Color, big: Boolean) {
 }
 
 @Composable
-private fun PcTitle(center: Boolean = false) {
+private fun PcTitle(vm: MainViewModel, center: Boolean = false) {
     val st by PcLink.state.collectAsState()
+    val cat by PcLink.catalog.collectAsState()
     val s = st
-    Column(horizontalAlignment = if (center) Alignment.CenterHorizontally else Alignment.Start) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.weight(1f), horizontalAlignment = if (center) Alignment.CenterHorizontally else Alignment.Start) {
         Text(
             if (s?.hasSession == false || s == null) "No hay nada sonando" else s.title,
             style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -165,13 +174,23 @@ private fun PcTitle(center: Boolean = false) {
             Text("Abrí TIDAL en la PC y poné algo", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+    // con el tema del catálogo se puede dar me gusta y abrir el menú (álbum, artista, playlist…)
+    cat?.let { t ->
+        IconButton(onClick = { vm.toggleFavorite(t) }) {
+            val fav = vm.isFavorite(t)
+            Icon(if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Me gusta", tint = if (fav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+        }
+        IconButton(onClick = { vm.sheetTrack = t }) { Icon(Icons.Default.MoreVert, "Más opciones") }
+    }
+    }
 }
 
 /** Letra del tema que suena en la PC, sincronizada con la posición que manda Marea PC. */
 @Composable
 private fun PcLyrics(vm: MainViewModel, accent: Color, modifier: Modifier = Modifier) {
     val st by PcLink.state.collectAsState()
-    val track = remember(st?.coverKey, st?.durationMs != null && st!!.durationMs > 0) { st?.takeIf { it.hasSession && it.title.isNotBlank() }?.asTrack() }
+    val cat by PcLink.catalog.collectAsState()
+    val track = cat ?: remember(st?.coverKey, st?.durationMs != null && st!!.durationMs > 0) { st?.takeIf { it.hasSession && it.title.isNotBlank() }?.asTrack() }
     LyricsView(track, vm.player.state.value, vm, accent, modifier, position = PcLink.position, onSeek = { PcLink.seekTo(it) })
 }
 
@@ -250,7 +269,7 @@ fun PcPane(vm: MainViewModel, modifier: Modifier = Modifier, onMinimize: (() -> 
         Column(Modifier.fillMaxSize()) {
             PcHeader(vm, onMinimize, onExpand = { vm.fullPlayerOpen = true })
             Row(Modifier.padding(start = 20.dp, top = 12.dp)) { PcCover(Modifier.size(140.dp)) }
-            Box(Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp)) { PcTitle() }
+            Box(Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp)) { PcTitle(vm) }
             Column(Modifier.padding(horizontal = 16.dp)) {
                 PcSeek(accent)
                 PcControls(accent, big = false)
@@ -274,7 +293,7 @@ fun PcFullPlayer(vm: MainViewModel, wide: Boolean) {
                         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                             PcCover(Modifier.fillMaxWidth().widthIn(max = 520.dp).aspectRatio(1f))
                             Spacer(Modifier.height(20.dp))
-                            PcTitle()
+                            PcTitle(vm)
                             PcSeek(accent)
                             PcControls(accent, big = true)
                         }
@@ -286,7 +305,7 @@ fun PcFullPlayer(vm: MainViewModel, wide: Boolean) {
                     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
                         PcCover(Modifier.fillMaxWidth().aspectRatio(1f).padding(top = 12.dp))
                         Spacer(Modifier.height(18.dp))
-                        PcTitle()
+                        PcTitle(vm)
                         PcSeek(accent)
                         PcControls(accent, big = true)
                         HorizontalDivider(Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.08f))
@@ -319,7 +338,10 @@ fun PcMiniPlayer(vm: MainViewModel, onExpand: () -> Unit) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainer), contentAlignment = Alignment.Center) {
                 val b = bmp
-                if (b != null) Image(b.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                val cat by PcLink.catalog.collectAsState()
+                val c = cat
+                if (c != null) SmoothCover(c.cover, Modifier.fillMaxSize(), RoundedCornerShape(14.dp))
+                else if (b != null) Image(b.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 else Icon(Icons.Default.Computer, null)
             }
             Spacer(Modifier.width(12.dp))
