@@ -80,6 +80,40 @@ fun Cover(url: String?, modifier: Modifier = Modifier, shape: Shape = RoundedCor
     }
 }
 
+/**
+ * Tapa del reproductor que no "parpadea" al cambiar de tema: deja la anterior puesta
+ * hasta que la nueva terminó de cargar y recién ahí funde (antes se veía el cuadro gris un instante).
+ */
+@Composable
+fun SmoothCover(url: String?, modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(8.dp)) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var shown by remember { mutableStateOf<String?>(null) }
+    Box(modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh), contentAlignment = Alignment.Center) {
+        if (url == null && shown == null) {
+            Icon(Icons.Default.MusicNote, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(28.dp))
+        }
+        val req = remember(url) {
+            coil3.request.ImageRequest.Builder(ctx).data(url).memoryCacheKey(url)
+                .placeholderMemoryCacheKey(shown)
+                .crossfade(350)
+                .build()
+        }
+        AsyncImage(
+            model = req, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+            onSuccess = { shown = url },
+        )
+    }
+}
+
+/** Precarga la tapa del próximo tema para que el cambio sea instantáneo. */
+@Composable
+fun PrefetchCover(url: String?) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.runtime.LaunchedEffect(url) {
+        if (url != null) coil3.SingletonImageLoader.get(ctx).enqueue(coil3.request.ImageRequest.Builder(ctx).data(url).memoryCacheKey(url).build())
+    }
+}
+
 @Composable
 fun QualityBadge(text: String, highlight: Boolean = false) {
     val c = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant

@@ -101,6 +101,9 @@ object PcLink {
     private var retryJob: Job? = null
     private var wantConnected = false
     private var failures = 0
+    /** La app está a la vista: solo ahí reintentamos sin parar (cuidamos la batería). */
+    @Volatile var foreground = false
+        set(v) { field = v; if (v) resume() }
 
     private val prefs by lazy { MareaApp.instance.getSharedPreferences("marea", Context.MODE_PRIVATE) }
     val savedHost: String? get() = prefs.getString("pcHost", null)
@@ -222,6 +225,12 @@ object PcLink {
                         _error.value = "Código incorrecto"
                         prefs.edit().remove("pcToken").apply()
                     }
+                    response?.code == 503 -> {
+                        // Marea PC está en espera porque TIDAL está cerrado: reintentamos tranquilos
+                        _status.value = Status.OFF
+                        _error.value = "TIDAL está cerrado en la PC"
+                        scheduleRetry(host)
+                    }
                     code401 -> {
                         _status.value = Status.NEEDS_CODE
                         prefs.edit().remove("pcToken").apply()
@@ -248,10 +257,12 @@ object PcLink {
     private fun scheduleRetry(host: String) {
         if (!wantConnected) return
         failures++
-        if (failures > 6) { DiagLog.add("PC", "Dejé de reintentar"); return }
+        retryJob?.cancel()
         retryJob = scope.launch {
-            delay(minOf(30_000L, 2_000L * failures))
-            if (wantConnected) open(host, savedToken, null)
+            // rápido al principio; después cada 10 s mientras la app esté a la vista
+            delay(if (failures <= 3) 2_000L * failures else 10_000L)
+            while (wantConnected && !foreground) delay(5_000)
+            if (wantConnected && _status.value != Status.CONNECTED) open(host, savedToken, null)
         }
     }
 
@@ -263,6 +274,11 @@ object PcLink {
                 if (token != null) prefs.edit().putString("pcToken", token).apply()
                 val name = o.optString("name").ifBlank { null }
                 if (name != null) { _pcName.value = name; prefs.edit().putString("pcName", name).apply() }
+            }
+            "bye" -> {
+                DiagLog.add("PC", "La PC avisó que cerraste TIDAL")
+                _state.value = null
+                _cover.value = null
             }
             "state" -> {
                 val s = PcState(

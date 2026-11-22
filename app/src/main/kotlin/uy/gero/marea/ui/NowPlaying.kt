@@ -361,7 +361,7 @@ fun MiniPlayer(st: PlayerUiState, vm: MainViewModel, coverColors: Boolean, onExp
             .clickable { onExpand() },
     ) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Crossfade(t.cover, label = "mini") { Cover(it, Modifier.size(46.dp), RoundedCornerShape(14.dp)) }
+            SmoothCover(t.cover, Modifier.size(46.dp), RoundedCornerShape(14.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(t.fullTitle, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
@@ -645,9 +645,7 @@ fun FullPlayer(st: PlayerUiState, vm: MainViewModel, actions: TrackActions, cove
 fun BreathingCover(t: Track, playing: Boolean, modifier: Modifier) {
     val scale by animateFloatAsState(if (playing) 1f else 0.86f, spring(dampingRatio = 0.6f, stiffness = 220f), label = "cover")
     Box(modifier.graphicsLayer { scaleX = scale; scaleY = scale; shadowElevation = if (playing) 40f else 8f; shape = RoundedCornerShape(28.dp); clip = true }) {
-        Crossfade(t.coverLarge ?: t.cover, animationSpec = tween(450), label = "art") { url ->
-            Cover(url, Modifier.fillMaxSize(), RoundedCornerShape(28.dp))
-        }
+        SmoothCover(t.coverLarge ?: t.cover, Modifier.fillMaxSize(), RoundedCornerShape(28.dp))
     }
 }
 

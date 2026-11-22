@@ -106,6 +106,9 @@ private fun LoggedIn(vm: MainViewModel) {
 
     BackHandler(enabled = vm.fullPlayerOpen || vm.canGoBack || vm.tab != Tab.HOME || vm.diagnosticsOpen || vm.labOpen) { vm.back() }
 
+    // las tapas del próximo tema quedan cargadas de antemano (cambio sin parpadeo)
+    st.queue.getOrNull(st.index + 1)?.let { n -> PrefetchCover(n.coverLarge ?: n.cover); PrefetchCover(n.cover) }
+
     LaunchedEffect(st.error) { st.error?.let { vm.message = it; vm.player.consumeError() } }
     LaunchedEffect(vm.message) { if (vm.message != null) { delay(2800); vm.message = null } }
 
@@ -113,7 +116,9 @@ private fun LoggedIn(vm: MainViewModel) {
         val wide = maxWidth >= 700.dp
         val fullWidth = maxWidth
         val pcStatus by uy.gero.marea.PcLink.status.collectAsState()
-        val pc = vm.onPc
+        // si cerrás TIDAL en la PC (o se corta), la interfaz vuelve sola al teléfono y regresa cuando reconecta
+        val pcAlive = uy.gero.marea.PcLink.state.collectAsState().value != null
+        val pc = vm.onPc && pcStatus == uy.gero.marea.PcLink.Status.CONNECTED && pcAlive
         val hasPlayer = st.current != null || pc
         val showPane = wide && settings.showQueuePane && !(vm.paneMinimized && hasPlayer)
         val haze = remember { HazeState() }

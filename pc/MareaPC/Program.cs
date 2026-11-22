@@ -33,6 +33,9 @@ sealed class Config
 {
     public string Code { get; set; } = Random.Shared.Next(1000, 10000).ToString();
     public List<string> Tokens { get; set; } = new();
+    /// Solo visible y conectable mientras TIDAL de escritorio está abierto
+    public bool OnlyWithTidal { get; set; } = true;
+    public bool FirstRunDone { get; set; }
 
     static string Dir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MareaPC");
     static string FilePath => Path.Combine(Dir, "config.json");
@@ -88,6 +91,10 @@ sealed class Tray : ApplicationContext
     readonly ToolStripMenuItem _playing = new() { Enabled = false };
     readonly ToolStripMenuItem _code = new() { Enabled = false };
     readonly ToolStripMenuItem _startup = new("Iniciar con Windows") { CheckOnClick = true };
+    readonly ToolStripMenuItem _onlyTidal = new("Solo cuando TIDAL está abierto") { CheckOnClick = true };
+    readonly System.Windows.Forms.Timer _watch = new() { Interval = 3000 };
+    bool? _tidalOpen;
+    DateTime _forceVisibleUntil = DateTime.MinValue;
     readonly SynchronizationContext _ui;
 
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -106,9 +113,19 @@ sealed class Tray : ApplicationContext
         menu.Items.Add("Nuevo código", null, (_, _) => { _cfg.Code = Random.Shared.Next(1000, 10000).ToString(); _cfg.Save(); Refresh(); ShowCode(); });
         menu.Items.Add("Olvidar teléfonos emparejados", null, (_, _) => { _cfg.Tokens.Clear(); _cfg.Save(); Log.Add("Se olvidaron los teléfonos emparejados"); });
         menu.Items.Add(new ToolStripSeparator());
+        if (!_cfg.FirstRunDone)
+        {
+            // la primera vez queda arrancando con Windows: si no, no se puede abrir solo con TIDAL
+            SetStartup(true);
+            _cfg.FirstRunDone = true;
+            _cfg.Save();
+        }
         _startup.Checked = IsStartup();
         _startup.CheckedChanged += (_, _) => SetStartup(_startup.Checked);
         menu.Items.Add(_startup);
+        _onlyTidal.Checked = _cfg.OnlyWithTidal;
+        _onlyTidal.CheckedChanged += (_, _) => { _cfg.OnlyWithTidal = _onlyTidal.Checked; _cfg.Save(); _tidalOpen = null; Watch(); };
+        menu.Items.Add(_onlyTidal);
         menu.Items.Add("Ver registro", null, (_, _) => ShowLog());
         menu.Items.Add("Salir", null, (_, _) => { _icon!.Visible = false; Application.Exit(); Environment.Exit(0); });
 
@@ -126,7 +143,33 @@ sealed class Tray : ApplicationContext
         _server.PairingRequested += () => _ui.Post(_ => ShowCode(), null);
         _media.Changed += () => _ui.Post(_ => Refresh(), null);
         Refresh();
-        ShowBalloon("Marea PC está corriendo", $"Para conectar Marea Link usá el código {_cfg.Code}. Lo ves con clic derecho en este ícono.");
+        if (_cfg.OnlyWithTidal && !TidalRunning())
+        {
+            // abierto a mano con TIDAL cerrado: avisamos y nos escondemos hasta que se abra TIDAL
+            _forceVisibleUntil = DateTime.Now.AddSeconds(8);
+            ShowBalloon("Marea PC está listo", "Va a aparecer solo cuando abras TIDAL (y se esconde cuando lo cerrás).");
+        }
+        else ShowBalloon("Marea PC está corriendo", $"Para conectar Marea Link usá el código {_cfg.Code}. Lo ves con clic derecho en este ícono.");
+        _watch.Tick += (_, _) => Watch();
+        _watch.Start();
+        Watch();
+    }
+
+    static bool TidalRunning()
+    {
+        try { return System.Diagnostics.Process.GetProcessesByName("TIDAL").Length > 0; }
+        catch { return true; }
+    }
+
+    /// Con "Solo cuando TIDAL está abierto": aparece y acepta conexiones solo mientras TIDAL corre.
+    void Watch()
+    {
+        var open = !_cfg.OnlyWithTidal || TidalRunning();
+        _icon.Visible = open || DateTime.Now < _forceVisibleUntil;
+        if (open == _tidalOpen) return;
+        _tidalOpen = open;
+        _server.SetActive(open);
+        Log.Add(open ? "TIDAL abierto: Marea PC activo" : "TIDAL cerrado: Marea PC en espera");
     }
 
     void Refresh()

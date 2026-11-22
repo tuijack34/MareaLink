@@ -26,6 +26,21 @@ sealed class Server
     public event Action? PairingRequested;
     public IReadOnlyCollection<string> ClientNames => _clients.Values.ToList();
 
+    /// false = TIDAL cerrado: no contesta búsquedas, rechaza conexiones y despide a los conectados
+    public bool Active { get; private set; } = true;
+
+    public void SetActive(bool on)
+    {
+        Active = on;
+        if (on) return;
+        _ = Task.Run(async () =>
+        {
+            await Broadcast(JsonSerializer.Serialize(new { type = "bye", reason = "tidal-closed" }));
+            foreach (var ws in _clients.Keys.ToList())
+                try { await ws.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "tidal closed", CancellationToken.None); } catch { }
+        });
+    }
+
     public Server(MediaBridge media, Config cfg)
     {
         _media = media;
@@ -78,6 +93,12 @@ sealed class Server
                 tcp.Close();
                 return;
             }
+            if (!Active)
+            {
+                await WriteText(stream, 503, "tidal closed");
+                tcp.Close();
+                return;
+            }
             if (path != "/ws" || !headers.TryGetValue("sec-websocket-key", out var key))
             {
                 await WriteText(stream, 404, "not found");
@@ -120,7 +141,7 @@ sealed class Server
             ClientsChanged?.Invoke();
             Log.Add($"Conectado: {device}");
 
-            await Send(ws, JsonSerializer.Serialize(new { type = "hello", name = Environment.MachineName, token = newToken }));
+            await Send(ws, JsonSerializer.Serialize(new { type = "hello", name = Environment.MachineName, token = newToken, code = (string?)null }));
             await Send(ws, StateJson());
             await Send(ws, CoverJson());
 
@@ -268,7 +289,7 @@ sealed class Server
             try
             {
                 var r = await udp.ReceiveAsync();
-                if (Encoding.UTF8.GetString(r.Buffer).Trim() != "MAREA_DISCOVER") continue;
+                if (!Active || Encoding.UTF8.GetString(r.Buffer).Trim() != "MAREA_DISCOVER") continue;
                 var reply = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { app = "MareaPC", name = Environment.MachineName, port = Port }));
                 await udp.SendAsync(reply, r.RemoteEndPoint);
             }
