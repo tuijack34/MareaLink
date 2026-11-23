@@ -18,7 +18,7 @@ object DiagLog {
     fun add(tag: String, msg: String) {
         Log.i("Marea/$tag", msg)
         val line = "${fmt.format(Date())} [$tag] $msg"
-        _lines.update { (it + line).takeLast(200) }
+        _lines.update { (it + line).takeLast(800) }
     }
 
     fun clear() { _lines.value = emptyList() }

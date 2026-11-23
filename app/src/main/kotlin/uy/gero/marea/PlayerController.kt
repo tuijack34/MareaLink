@@ -104,6 +104,9 @@ class PlayerController(private val app: MareaApp) {
     private var endHandledFor: String? = null
     private var pausedNearEndSince = 0L
     private var reclaimCount = 0
+    /** Lo último que sonó (para no volver a sugerir lo mismo y para detectar si algo se repite en bucle). */
+    private val recentTitles = ArrayDeque<String>()
+    private val recentIds = LinkedHashSet<String>()
     /** Último punto conocido del tema actual, para saber si un cambio de tema fue "natural" (terminó). */
     private var lastPos = 0f
     private var lastDur = 0f
@@ -355,6 +358,26 @@ class PlayerController(private val app: MareaApp) {
         // el fin del tema se confundía con "cambiaste de tema en TIDAL").
         lastDur = if (dur > 0) dur else (_state.value.queue.firstOrNull { matches(it, mediaId, title) }?.durationSec?.toFloat() ?: 0f)
         DiagLog.add("Link", "TIDAL suena: \"$title\" — $artist (id=$mediaId, ${dur.toInt()}s)")
+        // Detector de bucles: si un tema vuelve a sonar a los pocos temas, dejamos todo el contexto en Diagnóstico
+        run {
+            val tkey = "$title|$artist".lowercase()
+            val ago = recentTitles.indexOf(tkey)
+            if (ago in 0..7) {
+                val s0 = _state.value
+                DiagLog.add(
+                    "Bucle",
+                    "Se repite \"$title\" (sonó hace ${ago + 1} temas). cola de Marea=${s0.driving} tema=${s0.index + 1}/${s0.queue.size} " +
+                        "en tu cola=${s0.manualCount} repetir=${s0.repeat} aleatorio=${s0.shuffle} fuente=${s0.sourceLabel} " +
+                        "TIDAL repetir=${controller?.repeatMode} aleatorio=${controller?.shuffleMode} colaTIDAL=${controller?.queue?.size}",
+                )
+            }
+            recentTitles.addFirst(tkey)
+            while (recentTitles.size > 30) recentTitles.removeLast()
+            mediaId?.let { Regex("""\d{5,}""").find(it)?.value }?.let { id ->
+                recentIds.remove(id); recentIds.add(id)
+                while (recentIds.size > 400) recentIds.remove(recentIds.first())
+            }
+        }
 
         val st = _state.value
         val pending = pendingId
@@ -820,11 +843,20 @@ class PlayerController(private val app: MareaApp) {
             val result = runCatching { app.api.suggestions(base.id) }
             _state.update { it.copy(loadingSuggestions = false) }
             result.onSuccess { list ->
-                val existing = _state.value.queue.map { it.id }.toSet()
+                // ni lo que está en la cola ni lo que ya sonó hace poco (evita quedar girando entre 4 o 5 temas parecidos)
+                val existing = _state.value.queue.map { it.id }.toSet() + recentIds
                 val fresh = list.filter { it.id !in existing }
-                if (fresh.isEmpty()) { setError("No encontré sugerencias para este tema"); return@onSuccess }
+                DiagLog.add("Link", "Sugerencias de \"${base.title}\": ${list.size}, nuevas ${fresh.size}")
+                var add = fresh
+                if (add.isEmpty()) {
+                    // todo lo sugerido ya sonó: probamos con la radio del artista para salir del círculo
+                    val artistId = base.artists.firstOrNull { it.id.isNotBlank() }?.id
+                    if (artistId != null) add = runCatching { app.api.artistRadio(artistId) }.getOrDefault(emptyList()).filter { it.id !in existing }
+                    DiagLog.add("Link", "Sugerencias repetidas; radio del artista: ${add.size} nuevas")
+                }
+                if (add.isEmpty()) { setError("No encontré sugerencias nuevas para este tema"); return@onSuccess }
                 if (replaceUpNext) clearUpNext()
-                appendToEnd(fresh)
+                appendToEnd(add)
             }.onFailure { setError("No pude traer sugerencias: ${it.message}") }
         }
     }
