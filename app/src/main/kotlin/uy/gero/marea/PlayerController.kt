@@ -381,7 +381,18 @@ class PlayerController(private val app: MareaApp) {
 
         val st = _state.value
         val pending = pendingId
-        val matchesPending = pending != null && st.queue.firstOrNull { it.id == pending }?.let { matches(it, mediaId, title) } == true
+        val pendTrack = pending?.let { p -> st.queue.firstOrNull { it.id == p } }
+        var matchesPending = pendTrack != null && matches(pendTrack, mediaId, title, checkVersion = true)
+        if (!matchesPending && pendTrack != null && lastTried == PlayMethod.SEARCH && looseMatch(pendTrack, title)) {
+            if (searchVariant == 0) {
+                searchVariant = 1
+                DiagLog.add("Link", "TIDAL puso otra versión de \"${pendTrack.title}\" (id=$mediaId, quería ${pendTrack.id}); busco con el álbum")
+                send(pendTrack, PlayMethod.SEARCH)
+                return
+            }
+            DiagLog.add("Link", "TIDAL sigue poniendo otra versión de \"${pendTrack.title}\"; la dejo")
+            matchesPending = true
+        }
         when {
             matchesPending -> {
                 pendingId = null
@@ -496,9 +507,12 @@ class PlayerController(private val app: MareaApp) {
     // ---------- Pedirle a TIDAL que reproduzca ----------
 
     private var lastTried: PlayMethod? = null
+    /** 0 = "título (versión) artista"; 1 = además el álbum (cuando TIDAL puso otra versión del tema). */
+    private var searchVariant = 0
 
     private fun requestPlay(t: Track, method: PlayMethod = settings.playMethod) {
         pendingId = t.id
+        searchVariant = 0
         verifyJob?.cancel()
         val chain: List<PlayMethod> = when (method) {
             PlayMethod.AUTO -> listOfNotNull(workingMethod) + listOf(PlayMethod.URI, PlayMethod.SEARCH, PlayMethod.DEEPLINK).filter { it != workingMethod }
@@ -540,11 +554,13 @@ class PlayerController(private val app: MareaApp) {
             }
             PlayMethod.SEARCH -> {
                 if (tc == null) return false
-                val q = "${t.title} ${t.artists.firstOrNull()?.name.orEmpty()}".trim()
+                // con la versión (ej. "Live at NPR Music's Tiny Desk"): sin ella TIDAL ponía la original
+                val artist = t.artists.firstOrNull()?.name.orEmpty()
+                val q = (if (searchVariant == 0) "${t.fullTitle} $artist" else "${t.fullTitle} $artist ${t.albumTitle.orEmpty()}").trim()
                 DiagLog.add("Link", "→ playFromSearch \"$q\"")
                 tc.playFromSearch(q, Bundle().apply {
                     putString(MediaStore.EXTRA_MEDIA_FOCUS, MediaStore.Audio.Media.ENTRY_CONTENT_TYPE)
-                    putString(MediaStore.EXTRA_MEDIA_TITLE, t.title)
+                    putString(MediaStore.EXTRA_MEDIA_TITLE, t.fullTitle)
                     t.artists.firstOrNull()?.name?.let { putString(MediaStore.EXTRA_MEDIA_ARTIST, it) }
                     t.albumTitle?.let { putString(MediaStore.EXTRA_MEDIA_ALBUM, it) }
                 })
@@ -984,8 +1000,23 @@ class PlayerController(private val app: MareaApp) {
         }
     }
 
-    private fun matches(t: Track, mediaId: String?, title: String): Boolean {
-        if (mediaId != null && t.id.all { it.isDigit() } && mediaId.contains(t.id)) return true
+    /** Se pone en true la primera vez que el id de TIDAL coincide con el nuestro: desde ahí confiamos en los ids. */
+    private var idsReliable = false
+
+    private fun matches(t: Track, mediaId: String?, title: String, checkVersion: Boolean = false): Boolean {
+        if (mediaId != null && t.id.all { it.isDigit() } && mediaId.contains(t.id)) { idsReliable = true; return true }
+        // si los ids de TIDAL son confiables y es otro, es otro tema (u otra versión: en vivo, remix…)
+        if (idsReliable && mediaId != null && t.id.all { it.isDigit() } && Regex("""\d{5,}""").containsMatchIn(mediaId)) return false
+        // la versión que pedimos (ej. "Live at NPR Music's Tiny Desk") tiene que aparecer en el título que suena
+        if (checkVersion) {
+            val v = t.version?.let { norm(it) }.orEmpty()
+            if (v.isNotEmpty() && !norm(title).contains(v)) return false
+        }
+        return looseMatch(t, title)
+    }
+
+    /** Mismo título (ignora la versión): para reconocer "puso otra versión del tema que pedimos". */
+    private fun looseMatch(t: Track, title: String): Boolean {
         val a = norm(t.title)
         val b = norm(title)
         return a.isNotEmpty() && (a == b || b.startsWith(a) || a.startsWith(b))
