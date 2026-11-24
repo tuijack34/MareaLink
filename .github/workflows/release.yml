@@ -35,6 +35,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache: gradle
 
       - name: Clave de firma (secretos del repo)
         if: steps.ver.outputs.skip != 'true'
@@ -62,7 +63,8 @@ jobs:
           MAREA_PUBLIC: '1'
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          # Maven Central a veces corta con "429 Too Many Requests": reintentamos
+          ./gradlew assembleRelease --no-daemon || (sleep 60 && ./gradlew assembleRelease --no-daemon) || (sleep 120 && ./gradlew assembleRelease --no-daemon)
           mv app/build/outputs/apk/release/app-release.apk "MareaLink-${{ steps.ver.outputs.tag }}.apk"
 
       - uses: actions/setup-dotnet@v4
