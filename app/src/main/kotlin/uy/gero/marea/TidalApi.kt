@@ -392,7 +392,7 @@ class TidalApi(private val credentials: CredentialsProvider) {
             if (!isFlac || rate == null) return@runCatching null
             val depth = bits ?: if ("FLAC_HIRES" in formats) 24 else 16
             "$depth-bit · ${khz(rate)}"
-        }.onFailure { DiagLog.add("Calidad", "Tema $trackId: ${it.message}") }.getOrNull()
+        }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; DiagLog.add("Calidad", "Tema $trackId: ${it.message}") }.getOrNull()
         formatCache[trackId] = r ?: ""
         return r
     }

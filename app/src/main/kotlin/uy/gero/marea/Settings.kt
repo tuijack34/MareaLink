@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 /** Cómo le pedimos a la app oficial de TIDAL que reproduzca un tema. */
 enum class PlayMethod(val label: String, val detail: String) {
     AUTO("Automático", "Prueba los métodos en orden hasta que uno funcione"),
+    MEDIA_ID("Por id exacto (sin salir)", "Le pide a TIDAL el tema exacto por su id (TRACK::…), como Android Auto"),
     URI("Por link (sin salir)", "Le pasa el link del tema a TIDAL por la sesión de medios"),
     SEARCH("Por búsqueda (sin salir)", "Le pide a TIDAL que busque y reproduzca \"tema + artista\""),
     DEEPLINK("Abriendo TIDAL", "Abre el tema en la app de TIDAL (cambia de pantalla)"),

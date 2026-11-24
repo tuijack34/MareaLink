@@ -1,5 +1,6 @@
 package uy.gero.marea.ui
 
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.layout.onSizeChanged
@@ -209,8 +210,20 @@ fun Controls(st: PlayerUiState, player: PlayerController, accent: Color, big: Bo
 
 @Composable
 fun TrackTitleBlock(t: Track, vm: MainViewModel, accent: Color, center: Boolean = false) {
+    val mismatch by vm.player.mismatch.collectAsState()
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), horizontalAlignment = if (center) Alignment.CenterHorizontally else Alignment.Start) {
+            // TIDAL está sonando otra cosa que lo pedido: lo decimos claro en vez de mostrar un título que no es
+            mismatch?.let { real ->
+                Row(
+                    Modifier.padding(bottom = 6.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x33FFB300)).padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Warning, null, Modifier.size(15.dp), tint = Color(0xFFFFC94D))
+                    Spacer(Modifier.width(6.dp))
+                    Text("En TIDAL suena: $real", style = MaterialTheme.typography.labelMedium, color = Color(0xFFFFD98A), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
             Text(t.fullTitle, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = if (center) TextAlign.Center else TextAlign.Start)
             Text(
                 t.artistLine, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,

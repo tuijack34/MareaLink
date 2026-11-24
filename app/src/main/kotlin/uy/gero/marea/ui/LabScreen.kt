@@ -83,7 +83,7 @@ fun LabScreen(vm: MainViewModel) {
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                     FlowRow(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(PlayMethod.URI, PlayMethod.SEARCH, PlayMethod.DEEPLINK).forEach { m ->
+                        listOf(PlayMethod.MEDIA_ID, PlayMethod.URI, PlayMethod.SEARCH, PlayMethod.DEEPLINK).forEach { m ->
                             FilledTonalButton(onClick = { test?.let { vm.player.labTest(it, m) } }, enabled = test != null) { Text(m.label) }
                         }
                     }

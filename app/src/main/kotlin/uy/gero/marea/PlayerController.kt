@@ -383,16 +383,22 @@ class PlayerController(private val app: MareaApp) {
         val pending = pendingId
         val pendTrack = pending?.let { p -> st.queue.firstOrNull { it.id == p } }
         var matchesPending = pendTrack != null && matches(pendTrack, mediaId, title, checkVersion = true)
-        if (!matchesPending && pendTrack != null && lastTried == PlayMethod.SEARCH && looseMatch(pendTrack, title)) {
-            if (searchVariant == 0) {
-                searchVariant = 1
-                DiagLog.add("Link", "TIDAL puso otra versión de \"${pendTrack.title}\" (id=$mediaId, quería ${pendTrack.id}); busco con el álbum")
+        if (!matchesPending && pendTrack != null && lastTried == PlayMethod.SEARCH) {
+            if (searchVariant < 2) {
+                searchVariant++
+                DiagLog.add("Link", "La búsqueda puso \"$title\" (id=$mediaId) en vez de \"${pendTrack.fullTitle}\"; pruebo otra búsqueda (${searchVariant + 1}/3)")
+                _mismatch.value = "$title — $artist"
                 send(pendTrack, PlayMethod.SEARCH)
                 return
             }
-            DiagLog.add("Link", "TIDAL sigue poniendo otra versión de \"${pendTrack.title}\"; la dejo")
-            matchesPending = true
+            if (looseMatch(pendTrack, title)) {
+                DiagLog.add("Link", "TIDAL sigue poniendo otra versión de \"${pendTrack.title}\"; la dejo")
+                matchesPending = true
+            }
         }
+        // si suena algo distinto a lo que muestra Marea, lo avisamos en pantalla
+        val shown = if (matchesPending) pendTrack else st.current
+        _mismatch.value = if (shown != null && !matches(shown, mediaId, title)) "$title — $artist" else null
         when {
             matchesPending -> {
                 pendingId = null
@@ -507,15 +513,23 @@ class PlayerController(private val app: MareaApp) {
     // ---------- Pedirle a TIDAL que reproduzca ----------
 
     private var lastTried: PlayMethod? = null
-    /** 0 = "título (versión) artista"; 1 = además el álbum (cuando TIDAL puso otra versión del tema). */
+    /** Variantes de búsqueda si TIDAL pone otro tema: 0 = título (versión) artista · 1 = título artista álbum · 2 = título artista. */
     private var searchVariant = 0
+    /** El pedido por id exacto no respondió en esta sesión: no lo volvemos a intentar hasta reabrir la app. */
+    private var mediaIdFailed = false
+    /** Lo que TIDAL está sonando de verdad cuando no coincide con lo que pedimos (para mostrarlo). */
+    private val _mismatch = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val mismatch: kotlinx.coroutines.flow.StateFlow<String?> = _mismatch
 
     private fun requestPlay(t: Track, method: PlayMethod = settings.playMethod) {
         pendingId = t.id
         searchVariant = 0
         verifyJob?.cancel()
         val chain: List<PlayMethod> = when (method) {
-            PlayMethod.AUTO -> listOfNotNull(workingMethod) + listOf(PlayMethod.URI, PlayMethod.SEARCH, PlayMethod.DEEPLINK).filter { it != workingMethod }
+            PlayMethod.AUTO -> (
+                (if (!mediaIdFailed && t.id.all { it.isDigit() }) listOf(PlayMethod.MEDIA_ID) else emptyList()) +
+                    listOfNotNull(workingMethod) + listOf(PlayMethod.URI, PlayMethod.SEARCH, PlayMethod.DEEPLINK)
+                ).distinct().filter { it != PlayMethod.MEDIA_ID || !mediaIdFailed }
             else -> listOf(method)
         }
         verifyJob = scope.launch {
@@ -523,13 +537,14 @@ class PlayerController(private val app: MareaApp) {
                 if (!send(t, m)) continue
                 lastTried = m
                 // esperamos a que la metadata de TIDAL confirme el tema
-                val timeout = if (m == PlayMethod.DEEPLINK) 9000L else 4500L
+                val timeout = when (m) { PlayMethod.DEEPLINK -> 9000L; PlayMethod.MEDIA_ID -> 3000L; else -> 4500L }
                 val start = SystemClock.elapsedRealtime()
                 while (SystemClock.elapsedRealtime() - start < timeout) {
                     if (pendingId != t.id) return@launch // confirmado (o se pidió otro)
                     delay(150)
                 }
                 DiagLog.add("Link", "Método ${m.name}: TIDAL no puso \"${t.title}\" en ${timeout / 1000}s")
+                if (m == PlayMethod.MEDIA_ID) { mediaIdFailed = true; DiagLog.add("Link", "El pedido por id no anda en esta versión de TIDAL; sigo con búsqueda") }
                 if (m == PlayMethod.DEEPLINK && controller != null) {
                     // Abrió la pantalla del tema pero no lo reprodujo: intentamos darle play
                     controller?.transportControls?.play()
@@ -552,11 +567,21 @@ class PlayerController(private val app: MareaApp) {
                 tc.playFromUri(Uri.parse(trackUrl(t.id)), Bundle())
                 true
             }
+            PlayMethod.MEDIA_ID -> {
+                if (tc == null || !t.id.all { it.isDigit() }) return false
+                DiagLog.add("Link", "→ playFromMediaId TRACK::${t.id}")
+                tc.playFromMediaId("TRACK::${t.id}", Bundle())
+                true
+            }
             PlayMethod.SEARCH -> {
                 if (tc == null) return false
                 // con la versión (ej. "Live at NPR Music's Tiny Desk"): sin ella TIDAL ponía la original
                 val artist = t.artists.firstOrNull()?.name.orEmpty()
-                val q = (if (searchVariant == 0) "${t.fullTitle} $artist" else "${t.fullTitle} $artist ${t.albumTitle.orEmpty()}").trim()
+                val q = when (searchVariant) {
+                    0 -> "${t.fullTitle} $artist"
+                    1 -> "${t.title} $artist ${t.albumTitle.orEmpty()}"
+                    else -> "${t.title} $artist"
+                }.replace(Regex("\\s+"), " ").trim()
                 DiagLog.add("Link", "→ playFromSearch \"$q\"")
                 tc.playFromSearch(q, Bundle().apply {
                     putString(MediaStore.EXTRA_MEDIA_FOCUS, MediaStore.Audio.Media.ENTRY_CONTENT_TYPE)
