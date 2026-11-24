@@ -15,7 +15,7 @@ fun local(key: String): String? = localProps.getProperty(key)?.trim()?.takeIf { 
 
 // Opcional: si no hay Client ID, la app lo pide la primera vez que se abre.
 // Cambiar versionName publica una Release nueva en GitHub (ver .github/workflows/release.yml),
-// firmada con los secretos del repo y sin Client ID.
+// firmada con los secretos del repo y sin Client ID. (Si falla, tocar este archivo vuelve a lanzarla.)
 // MAREA_PUBLIC=1 compila un APK sin Client ID aunque tengas uno en local.properties (para publicar).
 val tidalClientId = if (System.getenv("MAREA_PUBLIC") == "1") "" else
     (local("tidal.clientId") ?: System.getenv("TIDAL_CLIENT_ID") ?: "")
