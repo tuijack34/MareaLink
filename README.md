@@ -37,7 +37,7 @@ Marea Link es una interfaz alternativa para TIDAL. **No reproduce audio por su c
 - **Botones de los auriculares/reloj** controlan la cola de Marea (ver más abajo).
 - Me gusta, agregar a playlists (también desde el reproductor), crear playlists, **anclar playlists** arriba de todo, **buscar dentro de una playlist**, sugerencias y radio de artista.
 - Menú del tema en el reproductor (⋮ o mantener apretada la tapa): ir al álbum o al artista, compartir, radio.
-- Formato del tema (ej. 24-bit · 96 kHz) cuando TIDAL lo informa.
+- Calidad del tema según el nivel de TIDAL (Lossless 16-bit · 44.1 kHz, Hi-Res 24-bit hasta 192 kHz).
 
 ## Limitaciones (leelas antes)
 

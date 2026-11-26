@@ -135,7 +135,9 @@ fun StreamQuality(st: PlayerUiState, center: Boolean = false) {
                 if (t.isAtmos) { Spacer(Modifier.width(6.dp)); QualityBadge("ATMOS") }
                 Spacer(Modifier.width(8.dp))
                 // formato exacto si TIDAL lo informa; si no, lo que garantiza cada nivel de TIDAL
-                val exact by androidx.compose.runtime.produceState<String?>(null, t.id) { value = uy.gero.marea.MareaApp.instance.api.audioFormat(t.id) }
+                // OJO: no pedir el manifiesto de reproducción a TIDAL para saber el formato exacto:
+                // TIDAL lo toma como que "Mi app" empezó a reproducir y pausa la app oficial (una sola reproducción por cuenta).
+                val exact: String? = null
                 val lossless = t.tags.any { it.contains("LOSSLESS") }
                 val spec = exact ?: when {
                     t.isHiRes -> "24-bit · hasta 192 kHz"

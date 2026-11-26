@@ -368,6 +368,7 @@ class TidalApi(private val credentials: CredentialsProvider) {
      * Es lo máximo disponible para ese tema; lo que suena depende de la calidad que tengas elegida en TIDAL.
      * Devuelve null si TIDAL no lo dice (por ejemplo si solo da la vista previa).
      */
+    @Deprecated("Pausa la app oficial de TIDAL: cuenta como una reproducción en otro dispositivo. No usar.")
     suspend fun audioFormat(trackId: String): String? {
         formatCache[trackId]?.let { return it.ifEmpty { null } }
         val r = runCatching {
