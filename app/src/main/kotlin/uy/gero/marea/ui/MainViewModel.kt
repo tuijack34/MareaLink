@@ -104,6 +104,12 @@ class MainViewModel : ViewModel() {
     var fullPlayerOpen by mutableStateOf(false)
     /** true = los controles manejan el TIDAL de la PC (Marea PC) en vez del teléfono */
     var onPc by mutableStateOf(false)
+
+    init {
+        // el temporizador para dormir pausa lo que estés controlando (teléfono o PC)
+        uy.gero.marea.SleepTimer.pauser = { if (onPc) uy.gero.marea.PcLink.send("pause") else player.pause() }
+        uy.gero.marea.SleepTimer.onPc = { onPc }
+    }
     var diagnosticsOpen by mutableStateOf(false)
     var labOpen by mutableStateOf(false)
     /** Reproductor lateral minimizado (Fold abierto). */

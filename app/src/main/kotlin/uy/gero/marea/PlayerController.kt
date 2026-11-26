@@ -350,6 +350,7 @@ class PlayerController(private val app: MareaApp) {
         }
         val prevPos = lastPos
         val prevDur = lastDur
+        val prevKey = lastMetaKey
         lastMetaKey = key
         lastPos = 0f
         posValidFrom = SystemClock.elapsedRealtime() + 1200
@@ -358,6 +359,7 @@ class PlayerController(private val app: MareaApp) {
         // el fin del tema se confundía con "cambiaste de tema en TIDAL").
         lastDur = if (dur > 0) dur else (_state.value.queue.firstOrNull { matches(it, mediaId, title) }?.durationSec?.toFloat() ?: 0f)
         DiagLog.add("Link", "TIDAL suena: \"$title\" — $artist (id=$mediaId, ${dur.toInt()}s)")
+        if (!_state.value.driving && prevKey != null && pendingId == null) SleepTimer.consumeEndOfTrack()
         // Detector de bucles: si un tema vuelve a sonar a los pocos temas, dejamos todo el contexto en Diagnóstico
         run {
             val tkey = "$title|$artist".lowercase()
@@ -945,6 +947,7 @@ class PlayerController(private val app: MareaApp) {
     /** El tema actual terminó en forma natural: siguiente de la cola de Marea. */
     private fun advanceNatural() {
         reclaimCount = 0
+        if (SleepTimer.consumeEndOfTrack()) return // "al terminar el tema": no seguimos
         val st = _state.value
         val nextIdx = when {
             st.repeat == RepeatMode.ONE -> st.index

@@ -306,8 +306,11 @@ object PcLink {
                     coverKey = o.optString("coverKey"),
                     receivedAt = System.currentTimeMillis(),
                 )
+                val prev = _state.value
                 _state.value = s
                 _position.value = s.positionMs / 1000f
+                // "dormir al terminar el tema" controlando la PC: pausamos cuando la PC pasa al siguiente
+                if (prev != null && prev.coverKey != s.coverKey && SleepTimer.onPc()) scope.launch(Dispatchers.Main) { SleepTimer.consumeEndOfTrack() }
                 if (s.hasSession && s.coverKey != catalogKey) resolveCatalog(s)
             }
             "cover" -> {

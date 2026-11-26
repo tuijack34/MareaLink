@@ -1,5 +1,6 @@
 package uy.gero.marea.ui
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Favorite
@@ -88,9 +89,14 @@ private fun rememberPcTint(fallback: Color): Color {
 }
 
 @Composable
-private fun PcCover(modifier: Modifier) {
+private fun PcCover(modifier0: Modifier, vm: MainViewModel? = null) {
     val bmp by PcLink.cover.collectAsState()
     val cat by PcLink.catalog.collectAsState()
+    // mantener apretada la tapa abre el menú del tema (temporizador, álbum, playlist…)
+    val modifier = if (vm == null) modifier0 else modifier0.clip(RoundedCornerShape(28.dp)).combinedClickable(
+        onClick = {},
+        onLongClick = { (cat ?: PcLink.state.value?.takeIf { it.hasSession }?.asTrack())?.let { vm.sheetTrack = it } },
+    )
     cat?.let { t -> SmoothCover(t.coverLarge ?: t.cover, modifier, RoundedCornerShape(28.dp)); return }
     Box(modifier.clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
         Crossfade(bmp, label = "pcCover") { b ->
@@ -268,7 +274,7 @@ fun PcPane(vm: MainViewModel, modifier: Modifier = Modifier, onMinimize: (() -> 
     Box(modifier.fillMaxHeight().background(Brush.verticalGradient(listOf(accent.darken(0.45f), MaterialTheme.colorScheme.background)))) {
         Column(Modifier.fillMaxSize()) {
             PcHeader(vm, onMinimize, onExpand = { vm.fullPlayerOpen = true })
-            Row(Modifier.padding(start = 20.dp, top = 12.dp)) { PcCover(Modifier.size(140.dp)) }
+            Row(Modifier.padding(start = 20.dp, top = 12.dp)) { PcCover(Modifier.size(140.dp), vm) }
             Box(Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp)) { PcTitle(vm) }
             Column(Modifier.padding(horizontal = 16.dp)) {
                 PcSeek(accent)
@@ -291,7 +297,7 @@ fun PcFullPlayer(vm: MainViewModel, wide: Boolean) {
                 if (wide) {
                     Row(Modifier.fillMaxSize().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                            PcCover(Modifier.fillMaxWidth().widthIn(max = 520.dp).aspectRatio(1f))
+                            PcCover(Modifier.fillMaxWidth().widthIn(max = 520.dp).aspectRatio(1f), vm)
                             Spacer(Modifier.height(20.dp))
                             PcTitle(vm)
                             PcSeek(accent)
@@ -303,7 +309,7 @@ fun PcFullPlayer(vm: MainViewModel, wide: Boolean) {
                     }
                 } else {
                     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-                        PcCover(Modifier.fillMaxWidth().aspectRatio(1f).padding(top = 12.dp))
+                        PcCover(Modifier.fillMaxWidth().aspectRatio(1f).padding(top = 12.dp), vm)
                         Spacer(Modifier.height(18.dp))
                         PcTitle(vm)
                         PcSeek(accent)
